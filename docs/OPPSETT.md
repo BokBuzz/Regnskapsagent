@@ -5,25 +5,37 @@ Rekkefølgen under er anbefalt.
 
 ## 1. Supabase (database og innlogging)
 
-1. Opprett et **nytt** prosjekt i Supabase, plan **Pro**, region i EU (f.eks. Frankfurt `eu-central-1`).
-   Ikke gjenbruk legacy-prosjektet.
-2. Under *Authentication → Multi-Factor*: slå på TOTP. API-et avviser innlogging uten MFA (`aal2`).
-3. Under *Database → Roles* (eller SQL-editoren), opprett innloggingsroller for API og arbeider, og gi dem
-   medlemskap i rollene migrasjonen lager. Bruk lange, tilfeldige passord:
+**Status 21.11.2026:** Prosjektet `bokbuzz` (ref `ihmjkupqpgixmnguixds`, region `eu-west-1` Irland, Postgres 17)
+er opprettet. Migrasjonene `0001`–`0003` er kjørt via Supabase-connectoren og registrert i
+`bokbuzz_meta.schema_migrations` med samme sjekksum som filene, så `python -m bokbuzz.migrate` hopper over dem
+og kjører bare nye filer. Sikkerhetsrådene (advisors) er tomme etter `0003`. API-URL:
+`https://ihmjkupqpgixmnguixds.supabase.co`.
+
+Det som gjenstår må du gjøre selv i dashboardet:
+
+1. **Plan og konto**: oppgrader organisasjonen til **Pro** før ekte data, og slå på tofaktor for din egen
+   Supabase-konto (*Account → Security*).
+2. **Databasepassord**: hvis passordet til `postgres` har vært vist eller delt noe sted, lag et nytt under
+   *Project Settings → Database*. Lagre det bare i en passordbehandler.
+3. **Authentication → Multi-Factor**: slå på TOTP. API-et avviser innlogging uten MFA (`aal2`).
+4. **Innloggingsroller** for API og arbeider. Kjør i SQL-editoren (rollene `bokbuzz_app` og
+   `bokbuzz_worker` finnes allerede). Bruk lange, tilfeldige passord, og ikke lim dem inn i chat:
    ```sql
-   -- kjør ETTER første migrasjon (rollene bokbuzz_app og bokbuzz_worker lages av migrasjonen)
    create role bokbuzz_api login password '<lang tilfeldig>' in role bokbuzz_app;
    create role bokbuzz_jobs login password '<lang tilfeldig>' in role bokbuzz_worker;
    ```
-4. Kjør migrasjonene med eierrollen (`postgres`), via Session pooler eller direkte tilkobling:
-   ```bash
-   BOKBUZZ_MIGRATION_DATABASE_URL='postgresql://postgres:<pw>@<host>:5432/postgres' python -m bokbuzz.migrate
-   ```
 5. API og arbeider må koble til via **Session pooler** (port 5432) eller direkte, ikke Transaction pooler
    (port 6543). Koden setter databaserolle per tilkobling, og det tåler ikke transaksjonsmodus.
+   Med pooleren blir brukernavnet `bokbuzz_api.ihmjkupqpgixmnguixds`.
 6. Ikke legg skjemaet `bokbuzz` til i *API → Exposed schemas*. Migrasjonen tar uansett bort tilgang for
-   `anon` og `authenticated`.
-7. Slå på Point-in-Time Recovery (tillegg på Pro) når piloten nærmer seg.
+   `anon` og `authenticated` (kontrollert: ingen av dem har tilgang til `bokbuzz` eller `bokbuzz_meta`).
+7. **DPA**: signer Supabase sin databehandleravtale (*Organization → Legal Documents*).
+8. Slå på Point-in-Time Recovery (tillegg på Pro) når piloten nærmer seg.
+
+Nye migrasjoner senere kjøres med eierrollen (`postgres`), via Session pooler eller direkte tilkobling:
+```bash
+BOKBUZZ_MIGRATION_DATABASE_URL='postgresql://postgres:<pw>@<host>:5432/postgres' python -m bokbuzz.migrate
+```
 
 ## 2. Google Cloud (API, arbeider, lagring, KI)
 
@@ -38,11 +50,11 @@ Rekkefølgen under er anbefalt.
 5. **Secret Manager**: legg inn `BOKBUZZ_DATABASE_URL` (én per tjeneste, med riktig rolle) og eventuelt
    `BOKBUZZ_SUPABASE_JWT_SECRET` hvis du ikke bruker JWKS.
 6. **Cloud Run** (`europe-west4`): to tjenester fra samme bilde (`backend/Dockerfile`):
-   - API: standardkommando. Miljø: `BOKBUZZ_ENVIRONMENT=prod`, `BOKBUZZ_SUPABASE_URL=https://<ref>.supabase.co`,
+   - API: standardkommando. Miljø: `BOKBUZZ_ENVIRONMENT=prod`, `BOKBUZZ_SUPABASE_URL=https://ihmjkupqpgixmnguixds.supabase.co`,
      `BOKBUZZ_STORAGE_BACKEND=gcs`, `BOKBUZZ_GCS_BUCKET=<bøtte>`.
    - Arbeider: kommando `python -m bokbuzz.worker`, minst én instans, CPU alltid tildelt. I tillegg
      `BOKBUZZ_AI_PROVIDER=vertex`, `BOKBUZZ_GCP_PROJECT=<prosjekt>`, `BOKBUZZ_VERTEX_LOCATION=eu`.
-7. Godta Googles databehandleravtale (Cloud Data Processing Addendum) i konsollen, og Supabase sin DPA.
+7. Godta Googles databehandleravtale (Cloud Data Processing Addendum) i konsollen.
 
 ## 3. Ting som må verifiseres før første ekte bilag
 
