@@ -18,6 +18,16 @@ koblet til ekte kunder, skytjenester eller KI ennå.
 | Godkjenning | To klikk: åpne (personlig engangs-token) og bekrefte; rettelser tillatt; regelendring gjør forslag ugyldig | Ett-klikk avvises; token kan ikke brukes av andre eller to ganger; dokument kan ikke bokføres utenom sitt forslag |
 | Drift | Dockerfile, GitHub Actions (lint, tester mot Postgres 16, container-bygg) | |
 
+## Runde 2 (21.11.2026): sky og KI
+
+| Område | Hva | Testet |
+|---|---|---|
+| Vertex AI | Gemini via `eu`-endepunktet med tjenestekonto (aldri API-nøkkel), tidsavbrudd og nye forsøk ved 429/5xx, tenke-tokens telles som output | Adapteren testes uten nettverk; `python -m bokbuzz.ai.smoke` sjekker ekte modeller når GCP er satt opp |
+| Kostnadstak | Pris per modell i konfigurasjon, kostnad lagres per forslag, tak per selskap og måned (standard 5 USD) | Over taket konteres bilag manuelt, og eskalering stoppes |
+| Produksjonsvern | Prod nekter falsk modell, lokal lagring og modeller uten pris | Testet |
+| Infrastruktur som kode | `infra/terraform`: API-er, Artifact Registry, låsbar bøtte, tjenestekontoer, hemmeligheter, Cloud Run API + arbeider, nøkkelfri GitHub-deploy | `terraform validate` |
+| Deploy | `.github/workflows/deploy.yml`: bygg, push og utrulling ved merge til main, når repo-variablene er satt | Kjøres først når eier har satt opp GCP |
+
 ## Gjenstår (neste runder)
 
 - **Fase 0 (eier):** rotere lekket legitimasjon, deaktivere n8n-webhooken, regnskapsfører starter

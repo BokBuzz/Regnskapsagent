@@ -60,6 +60,23 @@ def _run_model(
     return ex, errors, warnings, resp.usage
 
 
+def month_spend_micro_usd(conn: Conn, company_id: UUID) -> int:
+    """KI-kostnad for selskapet i inneværende måned (norsk tid)."""
+    row = conn.execute(
+        "select coalesce(sum((e.value->>'cost_micro_usd')::bigint), 0)::bigint as spent"
+        " from bokbuzz.proposals p cross join lateral jsonb_each(p.usage) e"
+        " where p.company_id = %s"
+        " and p.created_at >= (date_trunc('month', now() at time zone 'Europe/Oslo') at time zone 'Europe/Oslo')"
+        " and jsonb_typeof(e.value) = 'object'",
+        [company_id],
+    ).fetchone()
+    return row["spent"]
+
+
+def _over_cap(router: ModelRouter, spent: int) -> bool:
+    return router.monthly_cap_micro_usd is not None and spent >= router.monthly_cap_micro_usd
+
+
 def build_draft(ex: Extraction) -> VoucherDraft:
     assert ex.document_date is not None
     lines = [DraftLine(account=ln.account, amount_ore=ln.net_amount_ore, vat_code=ln.vat_code,
@@ -95,19 +112,35 @@ def generate_proposal(
     content, mime = read_content(conn, storage, company_id, document_id)
     account_rows = _accounts(conn, company_id, today)
     accounts = {a["number"]: a for a in account_rows}
-    vat_list = [{"code": c, "rate_bp": r, "description": ""} for c, (r, _d) in _vat_rates_on(conn, today).items()]
+    vat_list = conn.execute(
+        "select r.code, r.rate_bp, c.description from bokbuzz.vat_rates r join bokbuzz.vat_codes c on c.code = r.code"
+        " where r.valid_from <= %s and (r.valid_to is null or r.valid_to >= %s) order by r.code",
+        [today, today],
+    ).fetchall()
     request = ModelRequest(system=SYSTEM, prompt=build_prompt(account_rows, vat_list), content=content,
                            mime_type=mime, response_schema=response_schema())
 
-    model = router.default
-    ex, errors, warnings, usage = _run_model(model, request, conn, company_id, accounts, today)
-    usage_all = {model.name: usage}
+    spent = month_spend_micro_usd(conn, company_id)
+    usage_all: dict[str, dict] = {}
     escalated = False
-    if any(f.escalate for f in errors) or (ex is not None and ex.ambiguous):
-        escalated = True
-        model = router.escalation
+    ex: Extraction | None = None
+    errors: list[Finding] = []
+    warnings: list[Finding] = []
+    model = router.default
+    if _over_cap(router, spent):
+        errors = [Finding("cost_cap", "Månedens kostnadstak for KI er nådd; bilaget konteres manuelt")]
+    else:
         ex, errors, warnings, usage = _run_model(model, request, conn, company_id, accounts, today)
-        usage_all[model.name] = usage
+        usage_all[model.name] = {**usage, "cost_micro_usd": router.cost(model.name, usage)}
+        spent += usage_all[model.name]["cost_micro_usd"]
+        if any(f.escalate for f in errors) or (ex is not None and ex.ambiguous):
+            if _over_cap(router, spent):
+                warnings.append(Finding("cost_cap", "Kostnadstaket hindret sterkere modell"))
+            else:
+                escalated = True
+                model = router.escalation
+                ex, errors, warnings, usage = _run_model(model, request, conn, company_id, accounts, today)
+                usage_all[model.name] = {**usage, "cost_micro_usd": router.cost(model.name, usage)}
 
     draft: VoucherDraft | None = None
     if ex is not None and not errors:

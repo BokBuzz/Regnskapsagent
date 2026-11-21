@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     vertex_location: str = "eu"
     model_default: str = "gemini-3.1-flash-lite"
     model_escalation: str = "gemini-3.8-flash"
+    vertex_timeout_seconds: int = 90
+    # Priser i USD per million tokens (inn, ut) på EU-endepunktet, fra designdokumentet 21.11.2026.
+    # Oppdater når Google endrer prisene; brukes bare til kostnadstaket.
+    model_prices: dict[str, tuple[float, float]] = {
+        "gemini-3.1-flash-lite": (0.275, 1.65),
+        "gemini-3.8-flash": (0.825, 4.125),
+    }
+    # Kostnadstak for KI per selskap og måned. Når taket er nådd, konteres bilag manuelt.
+    ai_monthly_cap_usd: float | None = 5.0
 
     # Godkjenning (to klikk) og jobbkø
     review_token_ttl_seconds: int = 30 * 60
