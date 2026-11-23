@@ -32,14 +32,14 @@ export default function InboxPage() {
         <div className="card list" style={{ padding: 0 }}>
           {items.map((p) => (
             <Link key={p.id} to={p.id} className="item">
-              <span className="stack" style={{ gap: 2 }}>
+              <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                 <strong>{p.draft?.description ?? p.extraction?.supplier_name ?? "Bilag uten forslag"}</strong>
                 <span className="muted">
                   {p.draft ? formatDate(p.draft.voucher_date) : "Må fylles ut"}
                   {p.warnings.length > 0 && ` · ${p.warnings.length} merknad${p.warnings.length > 1 ? "er" : ""}`}
                 </span>
               </span>
-              <span className="stack right" style={{ gap: 2 }}>
+              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flex: "none" }}>
                 {p.extraction?.total_amount_ore != null && <Amount ore={p.extraction.total_amount_ore} />}
                 <span className={`badge ${p.status === "needs_manual" ? "warn" : ""}`}>{STATUS_LABEL[p.status]}</span>
               </span>

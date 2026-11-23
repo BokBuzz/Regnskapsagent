@@ -13,7 +13,7 @@ export default function CompanyLayout() {
       <header className="topbar">
         <div className="inner">
           <Link to="/" className="brand">Bokbuzz</Link>
-          <span className="muted" style={{ color: "inherit", opacity: 0.85 }}>{company?.name ?? ""}</span>
+          <span className="company-name">{company?.name ?? ""}</span>
           <button onClick={() => void signOut()}>Logg ut</button>
         </div>
       </header>
