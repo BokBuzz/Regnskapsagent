@@ -67,6 +67,9 @@ def lookup_orgnr(orgnr: str, principal: PrincipalDep, services: ServicesDep) -> 
 class CompanyCreate(BaseModel):
     orgnr: str
     name: str = Field(min_length=1, max_length=200)
+    org_form: Literal["ENK", "AS"] = "ENK"
+    modules: list[Literal["taxi"]] = Field(default_factory=list)
+    vat_registered: bool = True
 
     @field_validator("orgnr")
     @classmethod
@@ -80,8 +83,10 @@ class CompanyCreate(BaseModel):
 @router.post("/companies", status_code=201)
 def create_company(body: CompanyCreate, principal: PrincipalDep, services: ServicesDep) -> dict:
     with services.db.tx(principal.user_id) as conn:
-        cid = conn.execute("select bokbuzz.create_company(%s, %s) as id", [body.orgnr, body.name]
-                           ).fetchone()["id"]
+        cid = conn.execute(
+            "select bokbuzz.create_company_v2(%s, %s, %s, %s, %s) as id",
+            [body.orgnr, body.name, body.org_form, sorted(set(body.modules)), body.vat_registered],
+        ).fetchone()["id"]
         return conn.execute("select * from bokbuzz.companies where id = %s", [cid]).fetchone()
 
 

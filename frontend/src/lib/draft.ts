@@ -20,6 +20,13 @@ export interface VoucherForm {
   paymentAccount: string;
 }
 
+/** «Betalt privat»: innskudd fra eier i ENK (2070), gjeld til aksjonær i AS (2910). */
+export function paymentAccounts(orgForm: string): { number: string; label: string }[] {
+  return PAYMENT_ACCOUNTS.map((p) =>
+    p.number === "2070" && orgForm === "AS" ? { number: "2910", label: "Betalt privat (utlegg fra eier)" } : p,
+  );
+}
+
 export const PAYMENT_ACCOUNTS: { number: string; label: string }[] = [
   { number: "1920", label: "Bankkonto (næring)" },
   { number: "2070", label: "Betalt privat" },

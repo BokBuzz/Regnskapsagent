@@ -43,7 +43,7 @@ export default function LoginPage() {
   return (
     <main className="narrow stack">
       <h1>{mode === "in" ? "Logg inn på Bokbuzz" : "Opprett konto"}</h1>
-      <p className="muted">Regnskap for drosjeeiere. Ta bilde av kvitteringen, kontroller forslaget, bokfør.</p>
+      <p className="muted">Regnskap for enkeltpersonforetak og aksjeselskap. Ta bilde av kvitteringen, kontroller forslaget, bokfør.</p>
       <form className="card stack" onSubmit={submit}>
         <div>
           <label htmlFor="email">E-post</label>

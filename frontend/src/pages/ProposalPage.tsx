@@ -4,7 +4,7 @@ import { Amount, ErrorBox, Loading, Notice } from "../components/ui";
 import type { Account, Proposal, VatCode, Voucher } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import {
-  PAYMENT_ACCOUNTS,
+  paymentAccounts,
   draftFromForm,
   formErrors,
   formFromDraft,
@@ -27,17 +27,20 @@ export default function ProposalPage() {
   const proposal = useLoad(() => api.proposal(cid, pid), [api, cid, pid]);
   const accounts = useLoad(() => api.accounts(cid), [api, cid]);
   const vat = useLoad(() => api.vatCodes(), [api]);
+  const company = useLoad(() => api.company(cid), [api, cid]);
 
-  if (proposal.loading || accounts.loading || vat.loading) return <Loading />;
+  if (proposal.loading || accounts.loading || vat.loading || company.loading) return <Loading />;
   if (proposal.error || !proposal.data) return <ErrorBox error={proposal.error ?? "Fant ikke bilaget"} />;
-  return <Review cid={cid} proposal={proposal.data} accounts={accounts.data ?? []} vatCodes={vat.data ?? []} />;
+  return <Review cid={cid} proposal={proposal.data} accounts={accounts.data ?? []} vatCodes={vat.data ?? []}
+    orgForm={company.data?.org_form ?? "ENK"} />;
 }
 
-function Review({ cid, proposal, accounts, vatCodes }: {
+function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
   cid: string;
   proposal: Proposal;
   accounts: Account[];
   vatCodes: VatCode[];
+  orgForm: string;
 }) {
   const { api } = useAuth();
   const open = proposal.status === "pending" || proposal.status === "needs_manual";
@@ -62,6 +65,11 @@ function Review({ cid, proposal, accounts, vatCodes }: {
   const purchaseAccounts = accounts.filter((a) => a.account_type === "expense" || a.account_type === "asset");
   const total = formTotal(form, rates);
   const problems = formErrors(form);
+  const payOptions = paymentAccounts(orgForm);
+  if (!payOptions.some((p) => p.number === form.paymentAccount)) {
+    const acc = accounts.find((a) => a.number === form.paymentAccount);
+    payOptions.push({ number: form.paymentAccount, label: `${form.paymentAccount} ${acc?.name ?? ""}`.trim() });
+  }
 
   function setLine(i: number, patch: Partial<FormLine>) {
     setForm((f) => ({ ...f, lines: f.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
@@ -211,7 +219,7 @@ function Review({ cid, proposal, accounts, vatCodes }: {
             <label htmlFor="pay">Betalt fra</label>
             <select id="pay" value={form.paymentAccount} disabled={!open}
               onChange={(e) => { setForm({ ...form, paymentAccount: e.target.value }); setChecked(false); }}>
-              {PAYMENT_ACCOUNTS.map((p) => (
+              {payOptions.map((p) => (
                 <option key={p.number} value={p.number}>{p.label}</option>
               ))}
             </select>

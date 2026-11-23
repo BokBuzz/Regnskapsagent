@@ -14,6 +14,19 @@ export interface Company {
   name: string;
   role?: string;
   vat_registered: boolean;
+  org_form: OrgForm;
+  modules: Module[];
+}
+
+export type OrgForm = "ENK" | "AS";
+export type Module = "taxi";
+
+export interface NewCompany {
+  orgnr: string;
+  name: string;
+  org_form: OrgForm;
+  modules: Module[];
+  vat_registered: boolean;
 }
 
 export interface DraftLine {
@@ -141,7 +154,7 @@ export class Api {
   me = () => this.request<{ user_id: string; mfa: boolean }>("GET", "/me");
   companies = () => this.request<Company[]>("GET", "/companies");
   lookup = (orgnr: string) => this.request<Entity>("GET", `/lookup/orgnr/${encodeURIComponent(orgnr)}`);
-  createCompany = (orgnr: string, name: string) => this.request<Company>("POST", "/companies", { orgnr, name });
+  createCompany = (c: NewCompany) => this.request<Company>("POST", "/companies", c);
   company = (cid: string) => this.request<Company>("GET", `/companies/${cid}`);
   accounts = (cid: string) => this.request<Account[]>("GET", `/companies/${cid}/accounts`);
 

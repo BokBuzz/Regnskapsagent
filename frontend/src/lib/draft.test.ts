@@ -1,5 +1,5 @@
 import type { VoucherDraft } from "./api";
-import { draftFromForm, formErrors, formFromDraft, formTotal } from "./draft";
+import { draftFromForm, formErrors, formFromDraft, formTotal, paymentAccounts } from "./draft";
 
 const rates = { "0": 0, "1": 2500, "13": 1200 };
 
@@ -35,4 +35,11 @@ test("mangler gir feilmeldinger", () => {
   const errs = formErrors(formFromDraft(null));
   expect(errs.join(" ")).toMatch(/dato/);
   expect(errs.join(" ")).toMatch(/konto/);
+});
+
+test("betalt privat går til 2070 i ENK og 2910 i AS", () => {
+  expect(paymentAccounts("ENK").map((p) => p.number)).toContain("2070");
+  const as = paymentAccounts("AS").map((p) => p.number);
+  expect(as).toContain("2910");
+  expect(as).not.toContain("2070");
 });
