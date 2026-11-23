@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     jwt_audience: str = "authenticated"
     require_mfa: bool = True
 
+    # Nettlesere som får kalle API-et (appens adresse). Tom liste = ingen.
+    cors_origins: list[str] = ["http://localhost:5173"]
+    brreg_url: str = "https://data.brreg.no/enhetsregisteret/api/enheter"
+
     # Lagring av originalbilag
     storage_backend: Literal["local", "gcs"] = "local"
     local_storage_dir: str = "./var/documents"

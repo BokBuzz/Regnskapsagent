@@ -11,9 +11,9 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
-from .. import audit
+from .. import audit, brreg
 from ..documents import service as documents
-from ..errors import ValidationFailed
+from ..errors import NotFound, ValidationFailed
 from ..ledger import service as ledger
 from ..ledger.models import VoucherDraft
 from ..ledger.money import oslo_today
@@ -32,6 +32,33 @@ def health(services: ServicesDep) -> dict:
     with services.db.tx() as conn:
         conn.execute("select 1")
     return {"status": "ok"}
+
+
+@router.get("/me")
+def me(principal: PrincipalDep) -> dict:
+    return {"user_id": principal.user_id, "mfa": principal.has_mfa, "email": principal.email}
+
+
+@router.get("/vat-codes")
+def vat_codes(principal: PrincipalDep, services: ServicesDep,
+              on: Annotated[date | None, Query()] = None) -> list[dict]:
+    """MVA-koder med sats på en dato (standard i dag), til nedtrekkslister i appen."""
+    day = on or oslo_today()
+    with services.db.tx(principal.user_id) as conn:
+        return conn.execute(
+            "select c.code, c.description, c.direction, r.rate_bp from bokbuzz.vat_codes c"
+            " join bokbuzz.vat_rates r on r.code = c.code"
+            " where r.valid_from <= %s and (r.valid_to is null or r.valid_to >= %s)"
+            " order by c.direction, c.code::int", [day, day]).fetchall()
+
+
+@router.get("/lookup/orgnr/{orgnr}")
+def lookup_orgnr(orgnr: str, principal: PrincipalDep, services: ServicesDep) -> dict:
+    """Henter navn, organisasjonsform og MVA-registrering fra Enhetsregisteret ved oppstart."""
+    orgnr = orgnr.replace(" ", "")
+    if not valid_orgnr(orgnr):
+        raise ValidationFailed("Ugyldig organisasjonsnummer", code="invalid_orgnr")
+    return brreg.lookup(orgnr, services.settings.brreg_url).__dict__
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +176,17 @@ def list_proposals(ctx: CompanyDep, services: ServicesDep,
             "select * from bokbuzz.proposals where company_id = %s and (%s::text is null or status = %s)"
             " order by created_at limit 500", [ctx.company_id, status_filter, status_filter]
         ).fetchall()
+
+
+@router.get("/companies/{company_id}/proposals/{proposal_id}")
+def get_proposal(proposal_id: UUID, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        row = conn.execute("select * from bokbuzz.proposals where company_id = %s and id = %s",
+                           [ctx.company_id, proposal_id]).fetchone()
+        if not row:
+            raise NotFound("Forslaget finnes ikke")
+        doc = documents.get_document(conn, ctx.company_id, row["document_id"])
+    return {**row, "document": doc}
 
 
 @router.post("/companies/{company_id}/proposals/{proposal_id}/review")
