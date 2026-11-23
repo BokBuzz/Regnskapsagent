@@ -1,39 +1,56 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
-import { ErrorBox, Loading, Notice } from "../components/ui";
+import { Building2, CarTaxiFront, ChevronRight, LogOut, Plus, Search, User } from "lucide-react";
+import { Avatar, ErrorBox, Loading, Logo, Notice } from "../components/ui";
 import type { Entity, Module, OrgForm } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useLoad } from "../lib/useLoad";
+
+const ORG_FORM_LABEL: Record<string, string> = { ENK: "Enkeltpersonforetak", AS: "Aksjeselskap" };
 
 export default function CompaniesPage() {
   const { api, signOut } = useAuth();
   const { data, error, loading } = useLoad(() => api.companies(), [api]);
   const [adding, setAdding] = useState(false);
 
-  if (loading) return <main className="page"><Loading /></main>;
+  if (loading) return <main className="narrow"><Loading /></main>;
   if (data && data.length === 1 && !adding) return <Navigate to={`/c/${data[0].id}`} replace />;
+  const first = !data?.length;
 
   return (
     <main className="narrow stack">
       <div className="spread">
-        <h1>{data?.length ? "Velg selskap" : "Kom i gang"}</h1>
-        <button onClick={() => void signOut()}>Logg ut</button>
+        <Logo />
+        <button className="ghost icon" aria-label="Logg ut" title="Logg ut" onClick={() => void signOut()}>
+          <LogOut size={20} />
+        </button>
+      </div>
+      <div style={{ marginTop: 28 }}>
+        <div className="muted small" style={{ fontWeight: 700, color: "var(--brand)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          {first ? "Steg 1 av 1" : "Dine regnskap"}
+        </div>
+        <h1>{first ? "Kom i gang" : "Velg selskap"}</h1>
+        {first && <p className="muted" style={{ marginTop: 6 }}>Det tar under ett minutt. Vi henter opplysningene fra Brønnøysund.</p>}
       </div>
       <ErrorBox error={error} />
       {data && data.length > 0 && (
         <div className="card list">
           {data.map((c) => (
             <Link key={c.id} className="item" to={`/c/${c.id}`}>
-              <span>{c.name}</span>
-              <span className="muted num">{c.orgnr}</span>
+              <Avatar name={c.name} />
+              <span className="grow">
+                <span className="title" style={{ display: "block" }}>{c.name}</span>
+                <span className="sub">{ORG_FORM_LABEL[c.org_form] ?? c.org_form} · {c.orgnr}</span>
+              </span>
+              <ChevronRight className="chev" size={20} />
             </Link>
           ))}
         </div>
       )}
-      {data && (data.length === 0 || adding) ? (
+      {data && (first || adding) ? (
         <Onboarding />
       ) : (
-        <button onClick={() => setAdding(true)}>Legg til selskap</button>
+        <button className="block" onClick={() => setAdding(true)}><Plus size={18} /> Legg til selskap</button>
       )}
     </main>
   );
@@ -44,12 +61,15 @@ function Onboarding() {
   const nav = useNavigate();
   const [orgnr, setOrgnr] = useState("");
   const [entity, setEntity] = useState<Entity | null>(null);
+  const [looked, setLooked] = useState(false);
   const [name, setName] = useState("");
   const [orgForm, setOrgForm] = useState<OrgForm>("ENK");
   const [taxi, setTaxi] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const known = entity?.org_form === "ENK" || entity?.org_form === "AS";
+  const unsupported = !!entity && !known;
 
   async function lookup(e: FormEvent) {
     e.preventDefault();
@@ -61,11 +81,12 @@ function Onboarding() {
       setName(found.name);
       if (found.org_form === "ENK" || found.org_form === "AS") setOrgForm(found.org_form);
     } catch (err) {
-      // Oppslaget er en hjelp, ikke et krav: brukeren kan skrive navnet selv.
+      // Oppslaget er en hjelp, ikke et krav: brukeren kan fylle ut selv.
       setEntity(null);
       setError(err instanceof Error ? err.message : String(err));
       setName("");
     } finally {
+      setLooked(true);
       setBusy(false);
     }
   }
@@ -89,55 +110,76 @@ function Onboarding() {
   return (
     <section className="card stack">
       <h2>Registrer foretaket ditt</h2>
-      <form className="stack" onSubmit={lookup}>
-        <div>
-          <label htmlFor="orgnr">Organisasjonsnummer</label>
-          <input id="orgnr" inputMode="numeric" placeholder="9 siffer" required value={orgnr}
-            onChange={(e) => setOrgnr(e.target.value)} />
-        </div>
-        <button disabled={busy}>Hent fra Brønnøysund</button>
+      <form onSubmit={lookup}>
+        <label htmlFor="orgnr">Organisasjonsnummer</label>
+        <input id="orgnr" inputMode="numeric" placeholder="9 siffer" required value={orgnr}
+          onChange={(e) => setOrgnr(e.target.value)} />
+        <button disabled={busy} className="block" style={{ marginTop: 10 }}>
+          {busy ? <span className="spinner" /> : <Search size={18} />}
+          Hent fra Brønnøysund
+        </button>
       </form>
       {entity && (
-        <Notice kind={entity.deleted ? "warn" : "ok"}>
-          <strong>{entity.name}</strong> ({entity.org_form}){entity.address ? `, ${entity.address}` : ""}.{" "}
-          {entity.vat_registered ? "Registrert i MVA-registeret." : "Ikke registrert i MVA-registeret."}
-          {entity.deleted && " Enheten er slettet i Enhetsregisteret."}
-        </Notice>
+        <div className="supplier">
+          <Avatar name={entity.name} tone="honey" />
+          <div className="grow">
+            <strong>{entity.name}</strong>
+            <div className="muted small">
+              {ORG_FORM_LABEL[entity.org_form] ?? entity.org_form}
+              {entity.address ? ` · ${entity.address}` : ""}
+            </div>
+            <div className="row" style={{ marginTop: 6, gap: 6 }}>
+              <span className={`badge ${entity.vat_registered ? "ok" : "neutral"}`}>
+                {entity.vat_registered ? "MVA-registrert" : "Ikke MVA-registrert"}
+              </span>
+              {entity.deleted && <span className="badge warn">Slettet</span>}
+            </div>
+          </div>
+        </div>
       )}
-      {entity && entity.org_form !== "ENK" && entity.org_form !== "AS" && (
+      {unsupported && (
         <Notice kind="warn">
-          Bokbuzz støtter foreløpig enkeltpersonforetak (ENK) og aksjeselskap (AS). Denne enheten er {entity.org_form}.
+          Bokbuzz støtter foreløpig enkeltpersonforetak (ENK) og aksjeselskap (AS). Denne enheten er {entity?.org_form}.
         </Notice>
       )}
-      <ErrorBox error={error} />
-      {(entity || error) && (
+      {error && <Notice kind="warn">{error}. Du kan fylle ut selv.</Notice>}
+      {looked && (
         <div className="stack">
           <div>
             <label htmlFor="name">Navn</label>
             <input id="name" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label htmlFor="orgform">Selskapsform</label>
-            <select id="orgform" value={orgForm} onChange={(e) => setOrgForm(e.target.value as OrgForm)}
-              disabled={entity?.org_form === "ENK" || entity?.org_form === "AS"}>
-              <option value="ENK">Enkeltpersonforetak (ENK)</option>
-              <option value="AS">Aksjeselskap (AS)</option>
-            </select>
+            <label id="orgform-label">Selskapsform</label>
+            <div className="choice-grid" role="group" aria-labelledby="orgform-label">
+              {(["ENK", "AS"] as const).map((f) => (
+                <button key={f} type="button" className="choice" aria-pressed={orgForm === f}
+                  data-orgform={f} disabled={known && orgForm !== f} onClick={() => setOrgForm(f)}>
+                  <span className="ico">{f === "ENK" ? <User size={18} /> : <Building2 size={18} />}</span>
+                  <strong>{f === "ENK" ? "ENK" : "AS"}</strong>
+                  <span className="muted">{ORG_FORM_LABEL[f]}</span>
+                </button>
+              ))}
+            </div>
           </div>
-          <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
-            <legend className="muted">Bransjetillegg (valgfritt)</legend>
-            <label className="check">
+          <div>
+            <label>Bransjetillegg <span className="muted" style={{ fontWeight: 500 }}>(valgfritt)</span></label>
+            <label className="toggle-card check">
               <input type="checkbox" checked={taxi} onChange={(e) => setTaxi(e.target.checked)} />
-              <span>Drosje: kontoer for kjøreinntekter, taxisentral og oppgjør</span>
+              <span className="grow">
+                <strong style={{ display: "block" }}>Drosje</strong>
+                <span className="muted small">Kontoer for kjøreinntekter, taxisentral og oppgjør</span>
+              </span>
+              <CarTaxiFront size={22} className="muted" />
             </label>
-          </fieldset>
-          <label className="check">
+          </div>
+          <label className="check confirm">
             <input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />
             <span>Jeg forstår at jeg selv kontrollerer og bokfører hvert bilag. Bokbuzz foreslår, men fører
               ikke regnskapet for meg.</span>
           </label>
-          <button className="primary" disabled={busy || !name.trim() || !accepted ||
-              (!!entity && entity.org_form !== "ENK" && entity.org_form !== "AS")} onClick={() => void create()}>
+          <button className="primary block" disabled={busy || !name.trim() || !accepted || unsupported}
+            onClick={() => void create()}>
             Opprett regnskap
           </button>
         </div>

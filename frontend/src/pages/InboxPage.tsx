@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
-import { Amount, ErrorBox, Loading, STATUS_LABEL } from "../components/ui";
+import { ChevronRight, Inbox, Loader2, PartyPopper, RefreshCw } from "lucide-react";
+import { Amount, Avatar, EmptyState, ErrorBox, Loading, PageHead, STATUS_LABEL } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { formatDate } from "../lib/money";
 import { useLoad } from "../lib/useLoad";
@@ -15,36 +16,60 @@ export default function InboxPage() {
     a.created_at.localeCompare(b.created_at),
   );
   const waiting = (docs.data ?? []).filter((d) => d.status === "received").length;
+  const reload = () => { void pending.reload(); void manual.reload(); void docs.reload(); };
 
   return (
     <div className="stack">
-      <div className="spread">
-        <h1>Til kontroll</h1>
-        <button onClick={() => { void pending.reload(); void manual.reload(); void docs.reload(); }}>Oppdater</button>
-      </div>
+      <PageHead
+        eyebrow={items.length ? `${items.length} venter` : "Innboks"}
+        title="Til kontroll"
+        action={
+          <button className="icon" aria-label="Oppdater" title="Oppdater" onClick={reload}>
+            <RefreshCw size={18} />
+          </button>
+        }
+      />
       <ErrorBox error={pending.error ?? manual.error} />
-      {waiting > 0 && <p className="muted">{waiting} bilag leses fortsatt. Oppdater om litt.</p>}
+      {waiting > 0 && (
+        <div className="alert">
+          <Loader2 size={18} className="spinner" style={{ border: 0 }} />
+          <span>{waiting} bilag leses av KI-en. Trykk oppdater om litt.</span>
+        </div>
+      )}
       {pending.loading || manual.loading ? (
         <Loading />
       ) : items.length === 0 ? (
-        <p className="muted">Ingen bilag venter. Last opp en kvittering under «Nytt bilag».</p>
+        <EmptyState
+          icon={waiting ? <Inbox size={34} /> : <PartyPopper size={34} />}
+          title={waiting ? "Snart klart" : "Alt er kontrollert"}
+          action={<Link className="button primary" to={`/c/${cid}/opplasting`}>Last opp kvittering</Link>}
+        >
+          Nye bilag dukker opp her når KI-en har lest dem.
+        </EmptyState>
       ) : (
-        <div className="card list" style={{ padding: 0 }}>
-          {items.map((p) => (
-            <Link key={p.id} to={p.id} className="item">
-              <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-                <strong>{p.draft?.description ?? p.extraction?.supplier_name ?? "Bilag uten forslag"}</strong>
-                <span className="muted">
-                  {p.draft ? formatDate(p.draft.voucher_date) : "Må fylles ut"}
-                  {p.warnings.length > 0 && ` · ${p.warnings.length} merknad${p.warnings.length > 1 ? "er" : ""}`}
+        <div className="card list">
+          {items.map((p) => {
+            const name = p.extraction?.supplier_name ?? p.draft?.description ?? "Bilag uten forslag";
+            return (
+              <Link key={p.id} to={p.id} className="item">
+                <Avatar name={name} tone={p.status === "needs_manual" ? "honey" : "brand"} />
+                <span className="grow">
+                  <span className="title" style={{ display: "block" }}>{p.draft?.description ?? name}</span>
+                  <span className="sub">
+                    {p.draft ? formatDate(p.draft.voucher_date) : "Mangler opplysninger"}
+                    {p.warnings.length > 0 && ` · ${p.warnings.length} merknad${p.warnings.length > 1 ? "er" : ""}`}
+                  </span>
                 </span>
-              </span>
-              <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flex: "none" }}>
-                {p.extraction?.total_amount_ore != null && <Amount ore={p.extraction.total_amount_ore} />}
-                <span className={`badge ${p.status === "needs_manual" ? "warn" : ""}`}>{STATUS_LABEL[p.status]}</span>
-              </span>
-            </Link>
-          ))}
+                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flex: "none" }}>
+                  {p.extraction?.total_amount_ore != null && (
+                    <span className="amount"><Amount ore={p.extraction.total_amount_ore} /></span>
+                  )}
+                  <span className={`badge ${p.status === "needs_manual" ? "warn" : ""}`}>{STATUS_LABEL[p.status]}</span>
+                </span>
+                <ChevronRight className="chev" size={18} />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

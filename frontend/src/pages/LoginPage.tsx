@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { ErrorBox, Notice } from "../components/ui";
+import { Camera, CheckCheck, ShieldCheck, Sparkles } from "lucide-react";
+import { ErrorBox, Logo, Notice } from "../components/ui";
 import { useAuth } from "../lib/auth";
 
 export default function LoginPage() {
@@ -26,46 +27,72 @@ export default function LoginPage() {
     }
   }
 
+  const hero = (
+    <header className="hero">
+      <div style={{ maxWidth: 460, margin: "0 auto" }} className="stack">
+        <Logo size={36} light />
+        <h1 style={{ marginTop: 28 }}>Regnskap som<br />går av seg selv.</h1>
+        <p>For enkeltpersonforetak og aksjeselskap. Ta bilde av kvitteringen, KI-en foreslår, du bokfører.</p>
+      </div>
+    </header>
+  );
+
   if (auth.mode === "dev") {
     return (
-      <main className="narrow stack">
-        <h1>Bokbuzz (utvikling)</h1>
-        <Notice kind="warn">Lokal modus. Lag et token med <code>python -m bokbuzz.devtoken</code>.</Notice>
-        <label htmlFor="tok">Utviklertoken</label>
-        <textarea id="tok" rows={4} value={token} onChange={(e) => setToken(e.target.value)} />
-        <button className="primary" disabled={!token.trim()} onClick={() => auth.devSignIn(token)}>
-          Logg inn
-        </button>
-      </main>
+      <>
+        {hero}
+        <main className="narrow stack">
+          <div className="card stack">
+            <Notice kind="warn">Lokal modus. Lag et token med <code>python -m bokbuzz.devtoken</code>.</Notice>
+            <div>
+              <label htmlFor="tok">Utviklertoken</label>
+              <textarea id="tok" rows={4} value={token} onChange={(e) => setToken(e.target.value)} />
+            </div>
+            <button className="primary block" disabled={!token.trim()} onClick={() => auth.devSignIn(token)}>
+              Logg inn
+            </button>
+          </div>
+        </main>
+      </>
     );
   }
 
   return (
-    <main className="narrow stack">
-      <h1>{mode === "in" ? "Logg inn på Bokbuzz" : "Opprett konto"}</h1>
-      <p className="muted">Regnskap for enkeltpersonforetak og aksjeselskap. Ta bilde av kvitteringen, kontroller forslaget, bokfør.</p>
-      <form className="card stack" onSubmit={submit}>
-        <div>
-          <label htmlFor="email">E-post</label>
-          <input id="email" type="email" autoComplete="email" required value={email}
-            onChange={(e) => setEmail(e.target.value)} />
+    <>
+      {hero}
+      <main className="narrow stack">
+        <form className="card stack" onSubmit={submit}>
+          <h2>{mode === "in" ? "Logg inn" : "Opprett konto"}</h2>
+          <div>
+            <label htmlFor="email">E-post</label>
+            <input id="email" type="email" autoComplete="email" placeholder="navn@firma.no" required value={email}
+              onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div>
+            <label htmlFor="pw">Passord</label>
+            <input id="pw" type="password" required minLength={mode === "up" ? 12 : 1}
+              autoComplete={mode === "in" ? "current-password" : "new-password"} value={password}
+              onChange={(e) => setPassword(e.target.value)} />
+            {mode === "up" && <p className="muted small" style={{ marginTop: 6 }}>Minst 12 tegn.</p>}
+          </div>
+          <ErrorBox error={error} />
+          {info && <Notice kind="ok">{info}</Notice>}
+          <button className="primary block" type="submit" disabled={busy}>
+            {mode === "in" ? "Logg inn" : "Opprett konto"}
+          </button>
+          <button type="button" className="ghost block" onClick={() => setMode(mode === "in" ? "up" : "in")}>
+            {mode === "in" ? "Ny bruker? Opprett konto" : "Har du konto? Logg inn"}
+          </button>
+        </form>
+        <div className="steps">
+          <div className="step"><Camera size={22} />Ta bilde</div>
+          <div className="step"><Sparkles size={22} />KI foreslår</div>
+          <div className="step"><CheckCheck size={22} />Du bokfører</div>
         </div>
-        <div>
-          <label htmlFor="pw">Passord</label>
-          <input id="pw" type="password" required minLength={mode === "up" ? 12 : 1}
-            autoComplete={mode === "in" ? "current-password" : "new-password"} value={password}
-            onChange={(e) => setPassword(e.target.value)} />
-          {mode === "up" && <p className="muted">Minst 12 tegn.</p>}
-        </div>
-        <ErrorBox error={error} />
-        {info && <Notice kind="ok">{info}</Notice>}
-        <button className="primary" type="submit" disabled={busy}>
-          {mode === "in" ? "Logg inn" : "Opprett konto"}
-        </button>
-      </form>
-      <button type="button" onClick={() => setMode(mode === "in" ? "up" : "in")}>
-        {mode === "in" ? "Ny bruker? Opprett konto" : "Har du konto? Logg inn"}
-      </button>
-    </main>
+        <p className="muted small row" style={{ justifyContent: "center", gap: 6 }}>
+          <ShieldCheck size={16} /> Data lagres i EU. Tofaktor-innlogging er påkrevd.
+        </p>
+      </main>
+    </>
   );
 }

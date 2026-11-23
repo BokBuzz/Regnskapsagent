@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ErrorBox } from "../components/ui";
+import { KeyRound } from "lucide-react";
+import { ErrorBox, Logo } from "../components/ui";
 import { useAuth } from "../lib/auth";
 
 export default function MfaPage() {
@@ -36,7 +37,11 @@ export default function MfaPage() {
 
   return (
     <main className="narrow stack">
-      <h1>Tofaktor-innlogging</h1>
+      <Logo />
+      <div className="row" style={{ marginTop: 24 }}>
+        <span className="avatar"><KeyRound size={20} /></span>
+        <h1>Tofaktor-innlogging</h1>
+      </div>
       {needsEnroll ? (
         <>
           <p>Regnskapet ditt er beskyttet med en ekstra kode. Skann QR-koden med en autentiseringsapp
@@ -54,13 +59,13 @@ export default function MfaPage() {
       <form className="card stack" onSubmit={submit}>
         <div>
           <label htmlFor="code">Kode</label>
-          <input id="code" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" required
+          <input id="code" style={{ fontSize: "1.5rem", letterSpacing: "0.3em", textAlign: "center" }} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9 ]{6,7}" required
             value={code} onChange={(e) => setCode(e.target.value)} />
         </div>
         <ErrorBox error={error} />
-        <button className="primary" disabled={busy || !factorId}>Bekreft</button>
+        <button className="primary block" disabled={busy || !factorId}>Bekreft</button>
       </form>
-      <button onClick={() => void auth.signOut()}>Logg ut</button>
+      <button className="ghost block" onClick={() => void auth.signOut()}>Logg ut</button>
     </main>
   );
 }

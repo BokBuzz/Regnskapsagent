@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Amount, ErrorBox, Loading, Notice } from "../components/ui";
+import { ArrowLeft, CheckCircle2, Plus, Sparkles, Trash2, XCircle } from "lucide-react";
+import { Amount, Avatar, ErrorBox, Loading, Notice } from "../components/ui";
 import type { Account, Proposal, VatCode, Voucher } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import {
@@ -106,39 +107,52 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
 
   if (posted) {
     return (
-      <div className="stack">
-        <Notice kind="ok">
-          Bokført som bilag <strong>{posted.series}{posted.number}/{posted.year}</strong>.
-        </Notice>
-        <div className="row">
-          <Link className="button primary" to={`/c/${cid}/innboks`}>Neste bilag</Link>
-          <Link className="button" to={`/c/${cid}/bilag/${posted.id}`}>Se bilaget</Link>
+      <div className="card success">
+        <div className="art"><CheckCircle2 size={44} /></div>
+        <h1>Bokført!</h1>
+        <p className="muted" style={{ marginTop: 6 }}>Bokført som bilag</p>
+        <div className="voucher-no num">{posted.series}{posted.number}/{posted.year}</div>
+        <p className="muted small" style={{ marginBottom: 20 }}>Originalen og endringsloggen er lagret.</p>
+        <div className="stack-sm">
+          <Link className="button primary block" to={`/c/${cid}/innboks`}>Neste bilag</Link>
+          <Link className="button block" to={`/c/${cid}/bilag/${posted.id}`}>Se bilaget</Link>
         </div>
       </div>
     );
   }
   if (rejected) {
     return (
-      <div className="stack">
-        <Notice>Bilaget er avvist og blir ikke bokført.</Notice>
-        <Link className="button" to={`/c/${cid}/innboks`}>Tilbake</Link>
+      <div className="card success">
+        <div className="art" style={{ background: "var(--surface-2)", color: "var(--muted)" }}><XCircle size={44} /></div>
+        <h1>Avvist</h1>
+        <p className="muted" style={{ margin: "6px 0 20px" }}>Bilaget er avvist og blir ikke bokført.</p>
+        <Link className="button block" to={`/c/${cid}/innboks`}>Tilbake til kontroll</Link>
       </div>
     );
   }
 
+  const supplier = proposal.extraction?.supplier_name;
   return (
     <div className="stack">
-      <Link to={`/c/${cid}/innboks`}>← Til kontroll</Link>
+      <Link className="back" to={`/c/${cid}/innboks`}><ArrowLeft size={18} /> Til kontroll</Link>
       <div className="review">
-        <section className="original card">
-          <h2 style={{ marginTop: 0 }}>Originalbilag</h2>
-          <Original cid={cid} documentId={proposal.document_id} mime={proposal.document?.mime_type ?? ""} />
+        <section className="original card stack">
+          <div className="spread">
+            <h2>Originalbilag</h2>
+            <span className="badge neutral">{proposal.document?.mime_type === "application/pdf" ? "PDF" : "Bilde"}</span>
+          </div>
+          <div className="frame">
+            <Original cid={cid} documentId={proposal.document_id} mime={proposal.document?.mime_type ?? ""} />
+          </div>
         </section>
 
         <section className="card stack">
-          <div className="spread">
-            <h2 style={{ margin: 0 }}>Forslag</h2>
-            <span className="badge">Foreslått av KI{proposal.escalated ? " (kontrollert to ganger)" : ""}</span>
+          <div className="ai-head">
+            <span className="spark"><Sparkles size={20} /></span>
+            <div className="grow">
+              <h2>Forslag</h2>
+              <div className="muted small">Foreslått av KI{proposal.escalated ? ", kontrollert to ganger" : ""}. Du bestemmer.</div>
+            </div>
           </div>
           {!open && <Notice>Dette bilaget er allerede behandlet.</Notice>}
           {proposal.validation_errors.map((f) => (
@@ -147,11 +161,17 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
           {proposal.warnings.map((f) => (
             <Notice key={f.code} kind="warn">{f.message}</Notice>
           ))}
-          {proposal.extraction?.supplier_name && (
-            <p className="muted">
-              Leverandør: {proposal.extraction.supplier_name}
-              {proposal.extraction.supplier_orgnr ? ` (org.nr. ${proposal.extraction.supplier_orgnr})` : ""}
-            </p>
+          {supplier && (
+            <div className="supplier">
+              <Avatar name={supplier} tone="honey" />
+              <div className="grow">
+                <div className="muted small" style={{ fontWeight: 700 }}>Leverandør</div>
+                <strong>{supplier}</strong>
+                {proposal.extraction?.supplier_orgnr && (
+                  <div className="muted small num">Org.nr. {proposal.extraction.supplier_orgnr}</div>
+                )}
+              </div>
+            </div>
           )}
 
           <div className="row" style={{ alignItems: "flex-end" }}>
@@ -168,8 +188,8 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
           </div>
 
           {form.lines.map((l, i) => (
-            <fieldset key={i} className="card stack" style={{ padding: 12 }} disabled={!open}>
-              <legend className="muted">Linje {i + 1}</legend>
+            <fieldset key={i} className="line-card stack" disabled={!open}>
+              <legend>Linje {i + 1}</legend>
               <div>
                 <label htmlFor={`acc${i}`}>Konto</label>
                 <select id={`acc${i}`} value={l.account}
@@ -197,21 +217,21 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
                   </select>
                 </div>
               </div>
-              <div className="spread muted">
-                <span>MVA: <Amount ore={lineVat(l, rates)} /></span>
+              <div className="spread">
+                <span className="badge">MVA <Amount ore={lineVat(l, rates)} /></span>
                 {form.lines.length > 1 && (
-                  <button type="button" className="danger"
+                  <button type="button" className="danger ghost" style={{ minHeight: 36, padding: "4px 10px" }}
                     onClick={() => setForm({ ...form, lines: form.lines.filter((_, j) => j !== i) })}>
-                    Fjern linje
+                    <Trash2 size={16} /> Fjern linje
                   </button>
                 )}
               </div>
             </fieldset>
           ))}
           {open && (
-            <button type="button" onClick={() =>
+            <button type="button" className="ghost" style={{ alignSelf: "flex-start" }} onClick={() =>
               setForm({ ...form, lines: [...form.lines, { account: "", description: "", netOre: null, vatCode: "1", vatOre: null }] })}>
-              Legg til linje (annen MVA-sats)
+              <Plus size={18} /> Legg til linje (annen MVA-sats)
             </button>
           )}
 
@@ -225,9 +245,9 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
             </select>
           </div>
 
-          <div className="spread" style={{ fontSize: "1.1rem" }}>
-            <strong>Totalt inkl. MVA</strong>
-            <strong><Amount ore={total} /></strong>
+          <div className="total-bar">
+            <span style={{ fontWeight: 700 }}>Totalt inkl. MVA</span>
+            <span className="value num"><Amount ore={total} /></span>
           </div>
           {proposal.extraction?.total_amount_ore != null && proposal.extraction.total_amount_ore !== total && (
             <Notice kind="warn">
@@ -238,23 +258,23 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
           {open && (
             <>
               {problems.length > 0 && <Notice kind="warn">{problems.join(" ")}</Notice>}
-              <label className="check">
+              <label className="check confirm">
                 <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)}
                   disabled={problems.length > 0} />
                 <span>Jeg har kontrollert bilaget mot originalen, og vil bokføre det.</span>
               </label>
               <ErrorBox error={error} />
-              <button className="primary" disabled={!checked || busy || !token || problems.length > 0}
+              <button className="primary block" disabled={!checked || busy || !token || problems.length > 0}
                 onClick={() => void post()}>
-                Bokfør
+                {busy ? <span className="spinner" /> : <CheckCircle2 size={20} />} Bokfør
               </button>
               {!rejecting ? (
-                <button type="button" onClick={() => setRejecting(true)}>Ikke bokfør dette bilaget</button>
+                <button type="button" className="ghost block" onClick={() => setRejecting(true)}>Ikke bokfør dette bilaget</button>
               ) : (
-                <div className="stack">
+                <div className="card tinted stack">
                   <label htmlFor="reason">Hvorfor? (for eksempel privat kjøp eller duplikat)</label>
                   <input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-                  <button className="danger" disabled={busy || reason.trim().length < 3} onClick={() => void reject()}>
+                  <button className="danger solid block" disabled={busy || reason.trim().length < 3} onClick={() => void reject()}>
                     Avvis bilaget
                   </button>
                 </div>

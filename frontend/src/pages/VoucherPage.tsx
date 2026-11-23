@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { ArrowLeft, Lock, ShieldCheck, Undo2 } from "lucide-react";
 import { Amount, ErrorBox, Loading, Notice } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { formatDate } from "../lib/money";
@@ -19,6 +20,7 @@ export default function VoucherPage() {
   const v = voucher.data;
   if (!v) return <ErrorBox error={voucher.error ?? "Fant ikke bilaget"} />;
   const names = Object.fromEntries((accounts.data ?? []).map((a) => [a.number, a.name]));
+  const total = (v.lines ?? []).reduce((s, l) => s + (l.amount_ore > 0 ? l.amount_ore : 0), 0);
 
   async function reverse() {
     setError(null);
@@ -32,41 +34,51 @@ export default function VoucherPage() {
 
   return (
     <div className="stack">
-      <Link to={`/c/${cid}/bilag`}>← Bokførte bilag</Link>
-      <h1>
-        Bilag {v.series}{v.number}/{v.year}
-      </h1>
-      <p>
-        {formatDate(v.voucher_date)} · {v.description}
-      </p>
-      <div className="card table-wrap">
-        <table>
-          <thead>
-            <tr><th>Konto</th><th>MVA</th><th className="right">Debet</th><th className="right">Kredit</th></tr>
-          </thead>
-          <tbody>
-            {v.lines?.map((l) => (
-              <tr key={l.line_no}>
-                <td>{l.account} {names[l.account] ?? ""}</td>
-                <td>{l.vat_code ?? ""}</td>
-                <td className="right">{l.amount_ore > 0 && <Amount ore={l.amount_ore} />}</td>
-                <td className="right">{l.amount_ore < 0 && <Amount ore={-l.amount_ore} />}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="muted">Bokførte bilag kan ikke endres eller slettes. Feil rettes med et reverseringsbilag.</p>
+      <Link className="back" to={`/c/${cid}/bilag`}><ArrowLeft size={18} /> Bokførte bilag</Link>
+      <section className="card receipt stack">
+        <div className="head">
+          <span className="stamp"><ShieldCheck size={26} /></span>
+          <div className="grow">
+            <div className="muted small" style={{ fontWeight: 700 }}>{formatDate(v.voucher_date)}</div>
+            <h1 style={{ fontSize: "1.4rem" }}>Bilag {v.series}{v.number}/{v.year}</h1>
+          </div>
+          <span className="num" style={{ fontWeight: 800, fontSize: "1.2rem" }}><Amount ore={total} /></span>
+        </div>
+        <p>{v.description}</p>
+        <div className="card tinted table-wrap" style={{ padding: "4px 10px" }}>
+          <table>
+            <thead>
+              <tr><th>Konto</th><th className="right">Debet</th><th className="right">Kredit</th></tr>
+            </thead>
+            <tbody>
+              {v.lines?.map((l) => (
+                <tr key={l.line_no}>
+                  <td>
+                    <span className="acc-no">{l.account}{l.vat_code ? ` · MVA-kode ${l.vat_code}` : ""}</span>
+                    {names[l.account] ?? ""}
+                  </td>
+                  <td className="right">{l.amount_ore > 0 && <Amount ore={l.amount_ore} />}</td>
+                  <td className="right">{l.amount_ore < 0 && <Amount ore={-l.amount_ore} />}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted small row" style={{ gap: 6, flexWrap: "nowrap", alignItems: "flex-start" }}>
+          <Lock size={15} style={{ flex: "none", marginTop: 3 }} />
+          Bokførte bilag kan ikke endres eller slettes. Feil rettes med et reverseringsbilag.
+        </p>
+      </section>
       {done ? (
         <Notice kind="ok">{done}</Notice>
       ) : v.reverses_voucher_id ? null : !reversing ? (
-        <button onClick={() => setReversing(true)}>Reverser bilaget</button>
+        <button className="block" onClick={() => setReversing(true)}><Undo2 size={18} /> Reverser bilaget</button>
       ) : (
         <div className="card stack">
           <label htmlFor="reason">Begrunnelse for reversering</label>
           <input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
           <ErrorBox error={error} />
-          <button className="danger" disabled={reason.trim().length < 3} onClick={() => void reverse()}>
+          <button className="danger solid block" disabled={reason.trim().length < 3} onClick={() => void reverse()}>
             Bekreft reversering
           </button>
         </div>
