@@ -122,8 +122,8 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
   }
   if (rejected) {
     return (
-      <div className="card success">
-        <div className="art" style={{ background: "var(--surface-2)", color: "var(--muted)" }}><XCircle size={44} /></div>
+      <div className="card success declined">
+        <div className="art"><XCircle size={44} /></div>
         <h1>Avvist</h1>
         <p className="muted" style={{ margin: "6px 0 20px" }}>Bilaget er avvist og blir ikke bokført.</p>
         <Link className="button block" to={`/c/${cid}/innboks`}>Tilbake til kontroll</Link>
@@ -138,7 +138,7 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
       <div className="review">
         <section className="original card stack">
           <div className="spread">
-            <h2>Originalbilag</h2>
+            <h2>Original<em>bilag</em></h2>
             <span className="badge neutral">{proposal.document?.mime_type === "application/pdf" ? "PDF" : "Bilde"}</span>
           </div>
           <div className="frame">
@@ -150,7 +150,7 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
           <div className="ai-head">
             <span className="spark"><Sparkles size={20} /></span>
             <div className="grow">
-              <h2>Forslag</h2>
+              <h2>KI-<em>forslag</em></h2>
               <div className="muted small">Foreslått av KI{proposal.escalated ? ", kontrollert to ganger" : ""}. Du bestemmer.</div>
             </div>
           </div>
@@ -231,7 +231,7 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
           {open && (
             <button type="button" className="ghost" style={{ alignSelf: "flex-start" }} onClick={() =>
               setForm({ ...form, lines: [...form.lines, { account: "", description: "", netOre: null, vatCode: "1", vatOre: null }] })}>
-              <Plus size={18} /> Legg til linje (annen MVA-sats)
+              <Plus size={18} /> Legg til MVA-linje
             </button>
           )}
 

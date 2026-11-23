@@ -26,11 +26,11 @@ export default function CompaniesPage() {
         </button>
       </div>
       <div style={{ marginTop: 28 }}>
-        <div className="muted small" style={{ fontWeight: 700, color: "var(--brand)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div className="muted small mono" style={{ textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 10 }}>
           {first ? "Steg 1 av 1" : "Dine regnskap"}
         </div>
-        <h1>{first ? "Kom i gang" : "Velg selskap"}</h1>
-        {first && <p className="muted" style={{ marginTop: 6 }}>Det tar under ett minutt. Vi henter opplysningene fra Brønnøysund.</p>}
+        <h1>{first ? <>Kom <em>i gang</em></> : <>Velg <em>selskap</em></>}</h1>
+        {first && <p className="lede" style={{ marginTop: 12 }}>Det tar under ett minutt. Vi henter opplysningene fra Brønnøysund.</p>}
       </div>
       <ErrorBox error={error} />
       {data && data.length > 0 && (
@@ -109,7 +109,7 @@ function Onboarding() {
 
   return (
     <section className="card stack">
-      <h2>Registrer foretaket ditt</h2>
+      <h2>Registrer <em>foretaket</em></h2>
       <form onSubmit={lookup}>
         <label htmlFor="orgnr">Organisasjonsnummer</label>
         <input id="orgnr" inputMode="numeric" placeholder="9 siffer" required value={orgnr}
@@ -163,12 +163,12 @@ function Onboarding() {
             </div>
           </div>
           <div>
-            <label>Bransjetillegg <span className="muted" style={{ fontWeight: 500 }}>(valgfritt)</span></label>
+            <label>Bransjetillegg (valgfritt)</label>
             <label className="toggle-card check">
               <input type="checkbox" checked={taxi} onChange={(e) => setTaxi(e.target.checked)} />
               <span className="grow">
                 <strong style={{ display: "block" }}>Drosje</strong>
-                <span className="muted small">Kontoer for kjøreinntekter, taxisentral og oppgjør</span>
+                <span className="muted small mono">Kontoer for kjøreinntekter, taxisentral og oppgjør</span>
               </span>
               <CarTaxiFront size={22} className="muted" />
             </label>

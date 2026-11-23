@@ -22,7 +22,7 @@ export default function InboxPage() {
     <div className="stack">
       <PageHead
         eyebrow={items.length ? `${items.length} venter` : "Innboks"}
-        title="Til kontroll"
+        title={<>Til <em>kontroll</em></>}
         action={
           <button className="icon" aria-label="Oppdater" title="Oppdater" onClick={reload}>
             <RefreshCw size={18} />
@@ -55,17 +55,15 @@ export default function InboxPage() {
                 <Avatar name={name} tone={p.status === "needs_manual" ? "honey" : "brand"} />
                 <span className="grow">
                   <span className="title" style={{ display: "block" }}>{p.draft?.description ?? name}</span>
-                  <span className="sub">
+                  <span className="sub" style={{ display: "block" }}>
                     {p.draft ? formatDate(p.draft.voucher_date) : "Mangler opplysninger"}
                     {p.warnings.length > 0 && ` · ${p.warnings.length} merknad${p.warnings.length > 1 ? "er" : ""}`}
                   </span>
+                  <span className={`badge ${p.status === "needs_manual" ? "warn" : ""}`} style={{ marginTop: 8 }}>{STATUS_LABEL[p.status]}</span>
                 </span>
-                <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flex: "none" }}>
-                  {p.extraction?.total_amount_ore != null && (
-                    <span className="amount"><Amount ore={p.extraction.total_amount_ore} /></span>
-                  )}
-                  <span className={`badge ${p.status === "needs_manual" ? "warn" : ""}`}>{STATUS_LABEL[p.status]}</span>
-                </span>
+                {p.extraction?.total_amount_ore != null && (
+                  <span className="amount" style={{ flex: "none", alignSelf: "flex-start", marginTop: 4 }}><Amount ore={p.extraction.total_amount_ore} /></span>
+                )}
                 <ChevronRight className="chev" size={18} />
               </Link>
             );

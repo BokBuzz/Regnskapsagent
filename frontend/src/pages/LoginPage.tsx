@@ -29,10 +29,15 @@ export default function LoginPage() {
 
   const hero = (
     <header className="hero">
-      <div style={{ maxWidth: 460, margin: "0 auto" }} className="stack">
-        <Logo size={36} light />
-        <h1 style={{ marginTop: 28 }}>Regnskap som<br />går av seg selv.</h1>
-        <p>For enkeltpersonforetak og aksjeselskap. Ta bilde av kvitteringen, KI-en foreslår, du bokfører.</p>
+      <div className="stack">
+        <Logo />
+        <h1 style={{ marginTop: 40 }}>Regnskap.<br /><em>Endelig enkelt.</em></h1>
+        <p className="lede">Regnskapsprogram for enkeltpersonforetak og aksjeselskap.</p>
+        <p className="lede">Du tar bildet. KI-en gjør forarbeidet. Du bokfører.</p>
+        <div className="dusk-card">
+          <span className="mono">Bilag B1 · 625,00 kr</span>
+          <span className="serif">Kvittering.<br /><em>Bokført.</em></span>
+        </div>
       </div>
     </header>
   );
@@ -62,7 +67,7 @@ export default function LoginPage() {
       {hero}
       <main className="narrow stack">
         <form className="card stack" onSubmit={submit}>
-          <h2>{mode === "in" ? "Logg inn" : "Opprett konto"}</h2>
+          <h2>{mode === "in" ? <>Logg <em>inn</em></> : <>Opprett <em>konto</em></>}</h2>
           <div>
             <label htmlFor="email">E-post</label>
             <input id="email" type="email" autoComplete="email" placeholder="navn@firma.no" required value={email}
@@ -85,11 +90,11 @@ export default function LoginPage() {
           </button>
         </form>
         <div className="steps">
-          <div className="step"><Camera size={22} />Ta bilde</div>
-          <div className="step"><Sparkles size={22} />KI foreslår</div>
-          <div className="step"><CheckCheck size={22} />Du bokfører</div>
+          <div className="step"><b>1</b><span className="grow">Ta bilde av kvitteringen</span><Camera size={20} /></div>
+          <div className="step"><b>2</b><span className="grow">KI-en foreslår konto og MVA</span><Sparkles size={20} /></div>
+          <div className="step"><b>3</b><span className="grow">Du kontrollerer og bokfører</span><CheckCheck size={20} /></div>
         </div>
-        <p className="muted small row" style={{ justifyContent: "center", gap: 6 }}>
+        <p className="muted small row mono" style={{ gap: 8 }}>
           <ShieldCheck size={16} /> Data lagres i EU. Tofaktor-innlogging er påkrevd.
         </p>
       </main>

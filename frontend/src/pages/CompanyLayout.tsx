@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 import { BookCheck, Camera, Inbox, LogOut, PieChart } from "lucide-react";
-import { Avatar, LogoMark } from "../components/ui";
+import { LogoMark } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { useLoad } from "../lib/useLoad";
 
@@ -16,9 +16,8 @@ export default function CompanyLayout() {
     <>
       <header className="topbar">
         <div className="inner">
-          <Link to="/" aria-label="Bokbuzz, alle selskaper" style={{ display: "flex" }}><LogoMark size={34} /></Link>
+          <Link to="/" aria-label="Bokbuzz, alle selskaper" style={{ display: "flex" }}><LogoMark size={28} /></Link>
           <Link to="/" className="company-chip" title="Bytt selskap">
-            <Avatar name={company?.name ?? ""} small />
             <span style={{ minWidth: 0 }}>
               <span className="name" style={{ display: "block" }}>{company?.name ?? " "}</span>
               <span className="form">{company ? ORG_FORM_LABEL[company.org_form] ?? company.org_form : " "}

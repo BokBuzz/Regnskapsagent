@@ -44,12 +44,12 @@ export default function UploadPage() {
 
   return (
     <div className="stack">
-      <PageHead eyebrow="Nytt bilag" title="Hva har du kjøpt?" />
+      <PageHead eyebrow="Nytt bilag" title={<>Hva har du <em>kjøpt?</em></>} />
       <section className="capture-card stack">
         <span className="avatar honey" style={{ width: 52, height: 52, borderRadius: 16, background: "var(--honey)", color: "var(--ink)" }}>
           <Camera size={26} />
         </span>
-        <h2>Ta bilde av kvitteringen</h2>
+        <h2>Ta bilde av<br /><em>kvitteringen.</em></h2>
         <p>Eller velg PDF og bilder fra telefonen. Vi leser dato, beløp, leverandør og MVA for deg.</p>
         <div className="row">
           <button className="honey" disabled={busy} onClick={() => camera.current?.click()}>
@@ -87,7 +87,7 @@ export default function UploadPage() {
       )}
       <div className="card tinted row" style={{ alignItems: "flex-start", flexWrap: "nowrap" }}>
         <Lightbulb size={20} style={{ color: "var(--warn)", flex: "none", marginTop: 2 }} />
-        <p className="small muted">
+        <p className="small muted mono" style={{ lineHeight: 1.7 }}>
           <strong style={{ color: "var(--text)" }}>Tips:</strong> Legg kvitteringen på et mørkt underlag og få med hele
           lappen. Originalen lagres i fem år, slik bokføringsloven krever.
         </p>

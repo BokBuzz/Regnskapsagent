@@ -46,7 +46,7 @@ export function LogoMark({ size = 32 }: { size?: number }) {
   );
 }
 
-export function Logo({ size = 32, light = false }: { size?: number; light?: boolean }) {
+export function Logo({ size = 22, light = false }: { size?: number; light?: boolean }) {
   return (
     <span className="logo" style={light ? { color: "#fff" } : undefined}>
       <LogoMark size={size} />
@@ -55,7 +55,7 @@ export function Logo({ size = 32, light = false }: { size?: number; light?: bool
   );
 }
 
-export function PageHead({ eyebrow, title, action }: { eyebrow?: string; title: string; action?: ReactNode }) {
+export function PageHead({ eyebrow, title, action }: { eyebrow?: string; title: ReactNode; action?: ReactNode }) {
   return (
     <div className="page-head">
       <div>
@@ -98,7 +98,7 @@ export function YearSelect({ year, onChange }: { year: number; onChange: (y: num
   const now = new Date().getFullYear();
   return (
     <select aria-label="År" value={year} onChange={(e) => onChange(Number(e.target.value))}
-      style={{ width: "auto", borderRadius: 999, minHeight: 40, padding: "6px 14px", fontWeight: 700 }}>
+      className="mono" style={{ width: "auto", minHeight: 42, padding: "6px 12px", fontSize: "0.85rem" }}>
       {[0, 1, 2].map((d) => <option key={now - d} value={now - d}>{now - d}</option>)}
     </select>
   );

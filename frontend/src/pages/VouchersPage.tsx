@@ -14,7 +14,7 @@ export default function VouchersPage() {
 
   return (
     <div className="stack">
-      <PageHead eyebrow={data?.length ? `${data.length} bilag` : "Hovedbok"} title="Bokførte bilag"
+      <PageHead eyebrow={data?.length ? `${data.length} bilag` : "Hovedbok"} title={<>Bokførte <em>bilag</em></>}
         action={<YearSelect year={year} onChange={setYear} />} />
       <ErrorBox error={error} />
       {loading ? (
@@ -28,7 +28,7 @@ export default function VouchersPage() {
         <div className="card list">
           {[...data].reverse().map((v) => (
             <Link key={v.id} to={v.id} className="item">
-              <span className="avatar sm num" style={{ width: "auto", padding: "0 10px" }}>{v.series}{v.number}</span>
+              <span className="avatar sm" style={{ width: "auto", padding: "0 10px" }}>{v.series}{v.number}</span>
               <span className="grow">
                 <span className="title" style={{ display: "block" }}>{v.description}</span>
                 <span className="sub row" style={{ gap: 6 }}>

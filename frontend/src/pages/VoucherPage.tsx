@@ -39,12 +39,12 @@ export default function VoucherPage() {
         <div className="head">
           <span className="stamp"><ShieldCheck size={26} /></span>
           <div className="grow">
-            <div className="muted small" style={{ fontWeight: 700 }}>{formatDate(v.voucher_date)}</div>
+            <div className="muted small mono">{formatDate(v.voucher_date)}</div>
             <h1 style={{ fontSize: "1.4rem" }}>Bilag {v.series}{v.number}/{v.year}</h1>
           </div>
-          <span className="num" style={{ fontWeight: 800, fontSize: "1.2rem" }}><Amount ore={total} /></span>
+          <span className="num" style={{ fontSize: "1.05rem" }}><Amount ore={total} /></span>
         </div>
-        <p>{v.description}</p>
+        <p className="lede" style={{ color: "var(--text)" }}>{v.description}</p>
         <div className="card tinted table-wrap" style={{ padding: "4px 10px" }}>
           <table>
             <thead>
@@ -64,7 +64,7 @@ export default function VoucherPage() {
             </tbody>
           </table>
         </div>
-        <p className="muted small row" style={{ gap: 6, flexWrap: "nowrap", alignItems: "flex-start" }}>
+        <p className="muted small row mono" style={{ gap: 6, flexWrap: "nowrap", alignItems: "flex-start" }}>
           <Lock size={15} style={{ flex: "none", marginTop: 3 }} />
           Bokførte bilag kan ikke endres eller slettes. Feil rettes med et reverseringsbilag.
         </p>

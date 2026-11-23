@@ -28,7 +28,7 @@ export default function ReportPage() {
 
   return (
     <div className="stack">
-      <PageHead eyebrow={`Regnskapsåret ${year}`} title="Oversikt" action={<YearSelect year={year} onChange={setYear} />} />
+      <PageHead eyebrow={`Regnskapsåret ${year}`} title={<>Året <em>så langt</em></>} action={<YearSelect year={year} onChange={setYear} />} />
       <ErrorBox error={error} />
       {loading ? (
         <Loading rows={2} />
@@ -42,7 +42,7 @@ export default function ReportPage() {
           <div className="tiles">
             <div className="tile wide">
               <div className="label">Resultat hittil (foreløpig)</div>
-              <div className="value"><Amount ore={result} /> kr</div>
+              <div className="value"><Amount ore={result} /> <em>kr</em></div>
             </div>
             <div className="tile">
               <div className="label"><TrendingUp size={14} /> Inntekter</div>
@@ -52,14 +52,14 @@ export default function ReportPage() {
               <div className="label"><TrendingDown size={14} /> Kostnader</div>
               <div className="value"><Amount ore={costs} /></div>
             </div>
-            <div className="tile" style={{ gridColumn: "1 / -1" }}>
+            <div className="tile sky" style={{ gridColumn: "1 / -1" }}>
               <div className="label"><Receipt size={14} /> {vat >= 0 ? "MVA å betale" : "MVA til gode"}</div>
               <div className="value"><Amount ore={Math.abs(vat)} /></div>
             </div>
           </div>
           <section className="card stack" style={{ padding: 0 }}>
             <div className="spread" style={{ padding: "16px 18px 0" }}>
-              <h2>Saldobalanse</h2>
+              <h2>Saldo<em>balanse</em></h2>
               {data.total_ore === 0 && <span className="badge ok"><CheckCircle2 size={13} /> I balanse</span>}
             </div>
             <div className="table-wrap">
