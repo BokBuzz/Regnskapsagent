@@ -6,6 +6,9 @@ import CompanyLayout from "./pages/CompanyLayout";
 import InboxPage from "./pages/InboxPage";
 import LoginPage from "./pages/LoginPage";
 import MfaPage from "./pages/MfaPage";
+import PayrollPage from "./pages/PayrollPage";
+import PayrollRunPage from "./pages/PayrollRunPage";
+import PayslipPage from "./pages/PayslipPage";
 import ProposalPage from "./pages/ProposalPage";
 import ReportPage from "./pages/ReportPage";
 import UploadPage from "./pages/UploadPage";
@@ -31,6 +34,9 @@ export default function App() {
         <Route path="bank" element={<BankPage />} />
         <Route path="rapport" element={<ReportPage />} />
         <Route path="mva" element={<VatPage />} />
+        <Route path="lonn" element={<PayrollPage />} />
+        <Route path="lonn/:rid" element={<PayrollRunPage />} />
+        <Route path="lonn/:rid/slipp/:eid" element={<PayslipPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

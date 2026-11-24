@@ -18,6 +18,8 @@ from ..errors import NotFound, ValidationFailed
 from ..ledger import service as ledger
 from ..ledger.models import VoucherDraft
 from ..ledger.money import oslo_today
+from ..payroll import calc as payroll_calc
+from ..payroll import service as payroll
 from ..proposals.validation import valid_orgnr
 from ..review import service as review
 from ..vat import return_draft as vat_return
@@ -374,3 +376,158 @@ def vat_return_xml(year: int, term: int, ctx: CompanyDep, services: ServicesDep)
 
 def _vat_client(services):
     return getattr(services, "vat_client", None) or NotConfigured()
+
+
+# ---------------------------------------------------------------------------
+# Lønn (L0)
+# ---------------------------------------------------------------------------
+class PayrollSettingsBody(BaseModel):
+    aga_zone: Literal["1", "1a", "2", "3", "4", "4a", "5"] = "1"
+    holiday_rate_bp: Literal[1020, 1200] = 1020
+    pay_from_account: str = Field(pattern=r"^[0-9]{11}$")
+    tax_withholding_account: str | None = Field(default=None, pattern=r"^[0-9]{11}$")
+    kid_withholding: str | None = Field(default=None, pattern=r"^[0-9]{2,25}$")
+    kid_aga: str | None = Field(default=None, pattern=r"^[0-9]{2,25}$")
+    tax_authority_account: str | None = Field(default=None, pattern=r"^[0-9]{11}$")
+
+
+@router.get("/companies/{company_id}/payroll/settings")
+def get_payroll_settings(ctx: CompanyDep, services: ServicesDep) -> dict | None:
+    with services.db.tx(ctx.user_id) as conn:
+        ledger.require_role(conn, ctx.company_id, ctx.user_id, payroll.PAYROLL_ROLES)
+        return payroll.get_settings(conn, ctx.company_id)
+
+
+@router.put("/companies/{company_id}/payroll/settings")
+def put_payroll_settings(body: PayrollSettingsBody, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.save_settings(conn, company_id=ctx.company_id, actor=ctx.user_id, data=body.model_dump())
+
+
+class EmployeeBody(BaseModel):
+    national_id: str = Field(pattern=r"^[0-9]{11}$")
+    name: str = Field(min_length=1, max_length=200)
+    email: str | None = Field(default=None, max_length=200)
+    bank_account: str = Field(pattern=r"^[0-9]{11}$")
+    position_pct_bp: int = Field(default=10000, ge=1, le=10000)
+    pay_type: Literal["monthly", "hourly"]
+    monthly_salary_ore: int | None = Field(default=None, gt=0, le=10**10)
+    hourly_rate_ore: int | None = Field(default=None, gt=0, le=10**8)
+    tax_card_kind: Literal["percent", "table", "none"] = "percent"
+    tax_percent: int | None = Field(default=None, ge=0, le=100)
+    tax_table: str | None = Field(default=None, pattern=r"^[0-9]{4}$")
+    start_date: date
+    end_date: date | None = None
+
+
+@router.get("/companies/{company_id}/employees")
+def list_employees(ctx: CompanyDep, services: ServicesDep) -> list[dict]:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.list_employees(conn, ctx.company_id, ctx.user_id)
+
+
+@router.post("/companies/{company_id}/employees", status_code=201)
+def create_employee(body: EmployeeBody, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.create_employee(conn, company_id=ctx.company_id, actor=ctx.user_id, data=body.model_dump())
+
+
+@router.put("/companies/{company_id}/employees/{employee_id}")
+def update_employee(employee_id: UUID, body: EmployeeBody, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.update_employee(conn, company_id=ctx.company_id, actor=ctx.user_id,
+                                       employee_id=employee_id, data=body.model_dump())
+
+
+class RunCreate(BaseModel):
+    year: int = Field(ge=2000, le=2100)
+    month: int = Field(ge=1, le=12)
+    pay_date: date
+
+
+@router.get("/companies/{company_id}/payroll/runs")
+def list_payroll_runs(ctx: CompanyDep, services: ServicesDep) -> list[dict]:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.list_runs(conn, ctx.company_id, ctx.user_id)
+
+
+@router.post("/companies/{company_id}/payroll/runs", status_code=201)
+def create_payroll_run(body: RunCreate, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        run = payroll.create_run(conn, company_id=ctx.company_id, actor=ctx.user_id, year=body.year,
+                                 month=body.month, pay_date=body.pay_date)
+        return payroll.summary(conn, ctx.company_id, run["id"])
+
+
+@router.get("/companies/{company_id}/payroll/runs/{run_id}")
+def get_payroll_run(run_id: UUID, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        ledger.require_role(conn, ctx.company_id, ctx.user_id, payroll.PAYROLL_ROLES)
+        return payroll.summary(conn, ctx.company_id, run_id)
+
+
+class LineBody(BaseModel):
+    hours_x100: int | None = Field(default=None, ge=0, le=100_000)
+    bonus_ore: int = Field(default=0, ge=0, le=10**10)
+    base_override_ore: int | None = Field(default=None, ge=0, le=10**10)
+    tax_override_ore: int | None = Field(default=None, ge=0, le=10**10)
+    note: str | None = Field(default=None, max_length=300)
+
+
+@router.post("/companies/{company_id}/payroll/runs/{run_id}/lines/{employee_id}")
+def update_payroll_line(run_id: UUID, employee_id: UUID, body: LineBody, ctx: CompanyDep,
+                        services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.update_line(
+            conn, company_id=ctx.company_id, actor=ctx.user_id, run_id=run_id, employee_id=employee_id,
+            inp=payroll_calc.LineInput(body.hours_x100, body.bonus_ore, body.base_override_ore,
+                                       body.tax_override_ore), note=body.note)
+
+
+class RunApprove(BaseModel):
+    content_hash: str = Field(min_length=10)
+    confirm: Literal[True]
+
+
+@router.post("/companies/{company_id}/payroll/runs/{run_id}/approve")
+def approve_payroll_run(run_id: UUID, body: RunApprove, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.approve_run(conn, company_id=ctx.company_id, actor=ctx.user_id, run_id=run_id,
+                                   content_hash_seen=body.content_hash, confirm=body.confirm)
+
+
+@router.post("/companies/{company_id}/payroll/runs/{run_id}/cancel")
+def cancel_payroll_run(run_id: UUID, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.cancel_run(conn, company_id=ctx.company_id, actor=ctx.user_id, run_id=run_id)
+
+
+@router.get("/companies/{company_id}/payroll/runs/{run_id}/payment-file")
+def payroll_payment_file(run_id: UUID, ctx: CompanyDep, services: ServicesDep) -> Response:
+    with services.db.tx(ctx.user_id) as conn:
+        xml = payroll.payment_file(conn, company_id=ctx.company_id, actor=ctx.user_id, run_id=run_id)
+    return Response(content=xml, media_type="application/xml",
+                    headers={"content-disposition": f'attachment; filename="lonn-{run_id}.xml"'})
+
+
+@router.get("/companies/{company_id}/payroll/runs/{run_id}/payslips/{employee_id}")
+def payroll_payslip(run_id: UUID, employee_id: UUID, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.payslip(conn, company_id=ctx.company_id, actor=ctx.user_id, run_id=run_id,
+                               employee_id=employee_id)
+
+
+@router.get("/companies/{company_id}/payroll/terms/{year}/{term}")
+def payroll_term(year: int, term: int, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return payroll.term_payments(conn, company_id=ctx.company_id, actor=ctx.user_id, year=year, term=term)
+
+
+@router.get("/companies/{company_id}/payroll/terms/{year}/{term}/payment-file")
+def payroll_term_file(year: int, term: int, ctx: CompanyDep, services: ServicesDep,
+                      kind: Annotated[Literal["withholding", "aga"], Query()]) -> Response:
+    with services.db.tx(ctx.user_id) as conn:
+        xml = payroll.term_payment_file(conn, company_id=ctx.company_id, actor=ctx.user_id, year=year,
+                                        term=term, kind=kind)
+    return Response(content=xml, media_type="application/xml",
+                    headers={"content-disposition": f'attachment; filename="{kind}-{year}-{term}.xml"'})

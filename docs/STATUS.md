@@ -54,6 +54,20 @@ koblet til ekte kunder, skytjenester eller KI ennå.
 
 **Migrasjon 0005 må kjøres i Supabase (etter 0004) før denne koden tas i bruk.**
 
+## Runde 5 (24.11.2026): lønn L0
+
+| Område | Hva | Testet |
+|---|---|---|
+| Datamodell | Migrasjon 0006: `employees`, `payroll_settings`, `payroll_runs`, `payroll_lines`, `aga_rates` (soner med gyldighet), kontoene 1950, 2930, 2785, 5420. Godkjent kjøring og linjene dens er låst i databasen; én aktiv kjøring per måned | Endring etter godkjenning stoppes av databasen |
+| Beregning | Fastlønn og timelønn, tillegg, prosenttrekk (avrundet ned til hele kroner), tabellkort krever manuelt trekk til L2, feriepenger 10,2/12 %, arbeidsgiveravgift etter sone også av feriepenger | 5 tester |
+| Lønnskjøring | Utkast → kunden ser lønnsbilaget → godkjenner nøyaktig det hun så (hash). Bokføres via `post_voucher`; nettolønn per ansatt på 1920 slik at bankagenten avstemmer hver utbetaling | 5 tester, inkl. avstemming mot kontoutskrift |
+| Betalinger | pain.001.001.03 med nettolønn (SALA) og overføring til skattetrekkskonto; terminbetaling av forskuddstrekk og AGA med KID og forfall den 15. | 3 tester |
+| Lønnsslipp | Per ansatt med hittil i år, utskrivbar | 1 test |
+| App | Lønn via Saldo-siden: innstillinger, ansatte, ny kjøring, endre linjer, to-stegs godkjenning, betalingsfil, lønnsslipp, skatt og avgift per termin | `tsc`, vitest; hele flyten kjørt i nettleser |
+
+Ikke med i L0: A-melding (L1, venter på Maskinporten), skattekort-API og tabelltrekk (L2), OTP, ferietrekk,
+fribeløp i sone 1a. **Migrasjon 0006 må kjøres i Supabase før denne koden tas i bruk.**
+
 ## Gjenstår (neste runder)
 
 - **Fase 0 (eier):** rotere lekket legitimasjon, deaktivere n8n-webhooken, regnskapsfører starter

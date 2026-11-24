@@ -82,9 +82,9 @@ lønnskjøringen.
 
 | Steg | Innhold | Avhenger av | Anslag |
 |---|---|---|---|
-| L0 | Ansattregister, lønnskjøring, lønnsbilag, lønnsslipp, betalingsfil (pain.001) med KID | Ingenting | 4–6 uker |
+| L0 ✅ | Ansattregister, lønnskjøring, lønnsbilag, lønnsslipp, betalingsfil (pain.001) med KID. Bygget 24.11.2026 (PR #5); OTP, tabelltrekk og ferietrekk er ikke med ennå | Ingenting | Ferdig |
 | L1 | A-melding og tilbakemelding via API | Maskinporten, systembruker, A-meldings-tilgang | 4–6 uker etter tilgang |
-| L2 | Skattekort automatisk, feriepenger og ferietrekk fullt ut | Tilgang til skattekort-API | 3–4 uker |
+| L2 | Skattekort automatisk, tabelltrekk, OTP, feriepenger og ferietrekk fullt ut | Tilgang til skattekort-API | 3–4 uker |
 | L3 | «Send til banken» via PSD2-betalingsinitiering | Aggregatoravtale | 3–4 uker |
 | L4 | Sykepenger, NAV-refusjon, OTP-integrasjon, ansattportal | | Senere |
 
