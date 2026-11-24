@@ -108,10 +108,11 @@ def auth(user_id: uuid.UUID, aal: str = "aal2") -> dict[str, str]:
     return {"authorization": f"Bearer {token_for(user_id, aal)}"}
 
 
-def create_company(db: Database, user: uuid.UUID, year: int | None = None) -> uuid.UUID:
+def create_company(db: Database, user: uuid.UUID, year: int | None = None, *, org_form: str = "ENK",
+                   modules: tuple[str, ...] = ("taxi",)) -> uuid.UUID:
     with db.tx(user) as conn:
-        cid = conn.execute("select bokbuzz.create_company(%s, %s) as id",
-                           [random_orgnr(), "Test Taxi"]).fetchone()["id"]
+        cid = conn.execute("select bokbuzz.create_company_v2(%s, %s, %s, %s, true) as id",
+                           [random_orgnr(), "Test Taxi", org_form, list(modules)]).fetchone()["id"]
         if year is not None:
             conn.execute("select bokbuzz.open_fiscal_year(%s, %s)", [cid, year])
     return cid

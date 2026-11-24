@@ -7,6 +7,7 @@ import uuid
 
 import psycopg
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from ..errors import DomainError
@@ -22,6 +23,15 @@ def create_app(services: Services) -> FastAPI:
                   redoc_url=None)
     app.state.services = services
     app.include_router(router)
+    if services.settings.cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=services.settings.cors_origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["authorization", "content-type", "x-correlation-id"],
+            expose_headers=["x-correlation-id"],
+            max_age=600,
+        )
 
     @app.middleware("http")
     async def correlation_id(request: Request, call_next):

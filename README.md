@@ -1,4 +1,8 @@
-# Bokbuzz – regnskapsplattform for taxi-ENK
+# Bokbuzz – selvbetjent regnskap for ENK og AS
+
+Kunden fører sitt eget regnskap, som i Fiken: KI foreslår dato, beløp, leverandør, konto og MVA,
+og kunden kontrollerer og bokfører hvert bilag selv. Kontoplanen settes ut fra selskapsformen
+(ENK eller AS), og bransjer som drosje legges til som valgfrie moduler.
 
 Én Python-backend (FastAPI), én Postgres-database som eneste sannhetskilde, og KI som
 bare lager forslag. Et menneske godkjenner alltid (minst to klikk) før noe bokføres.
@@ -19,6 +23,7 @@ backend/
     jobs.py            jobbkø i Postgres (lease, ingen duplikater ved krasj)
     audit.py           revisjonslogg med hash-kjede (beregnes i databasen)
   tests/               pytest mot ekte Postgres
+infra/terraform/       Google Cloud som kode (Cloud Run, bøtte, IAM, hemmeligheter, GitHub-deploy)
 docs/
   OPPSETT.md           hva eier må sette opp (Supabase, Google Cloud, hemmeligheter)
   STATUS.md            hva som er bygget, og hva som gjenstår per fase
