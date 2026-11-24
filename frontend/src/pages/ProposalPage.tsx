@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Plus, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, HelpCircle, Landmark, Plus, Sparkles, Trash2, XCircle } from "lucide-react";
 import { Amount, Avatar, ErrorBox, Loading, Notice } from "../components/ui";
 import type { Account, Proposal, VatCode, Voucher } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -14,7 +14,7 @@ import {
   type FormLine,
   type VoucherForm,
 } from "../lib/draft";
-import { formatOre, parseKroner } from "../lib/money";
+import { formatDate, formatOre, parseKroner } from "../lib/money";
 import { useLoad } from "../lib/useLoad";
 
 /**
@@ -32,6 +32,7 @@ export default function ProposalPage() {
 
   if (proposal.loading || accounts.loading || vat.loading || company.loading) return <Loading />;
   if (proposal.error || !proposal.data) return <ErrorBox error={proposal.error ?? "Fant ikke bilaget"} />;
+  if (proposal.data.bank_transaction_id) return <BankReview cid={cid} proposal={proposal.data} />;
   return <Review cid={cid} proposal={proposal.data} accounts={accounts.data ?? []} vatCodes={vat.data ?? []}
     orgForm={company.data?.org_form ?? "ENK"} />;
 }
@@ -142,7 +143,9 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
             <span className="badge neutral">{proposal.document?.mime_type === "application/pdf" ? "PDF" : "Bilde"}</span>
           </div>
           <div className="frame">
-            <Original cid={cid} documentId={proposal.document_id} mime={proposal.document?.mime_type ?? ""} />
+            {proposal.document_id && (
+              <Original cid={cid} documentId={proposal.document_id} mime={proposal.document?.mime_type ?? ""} />
+            )}
           </div>
         </section>
 
@@ -155,6 +158,7 @@ function Review({ cid, proposal, accounts, vatCodes, orgForm }: {
             </div>
           </div>
           {!open && <Notice>Dette bilaget er allerede behandlet.</Notice>}
+          <Why text={proposal.explanation} />
           {proposal.validation_errors.map((f) => (
             <Notice key={f.code} kind="warn">{f.message}</Notice>
           ))}
@@ -324,4 +328,144 @@ function Original({ cid, documentId, mime }: { cid: string; documentId: string; 
   if (mime === "image/heic")
     return <p><a href={url} download>Last ned originalen</a> (HEIC kan ikke vises i alle nettlesere).</p>;
   return <img src={url} alt="Originalbilag" />;
+}
+
+/** «Hvorfor?»: forklaringen på valgt konto og MVA-kode, på enkel norsk. */
+function Why({ text }: { text?: string | null }) {
+  const [open, setOpen] = useState(false);
+  if (!text) return null;
+  return (
+    <div className="card tinted stack-sm">
+      <button type="button" className="ghost" style={{ alignSelf: "flex-start", minHeight: 36, padding: "4px 10px" }}
+        aria-expanded={open} onClick={() => setOpen(!open)}>
+        <HelpCircle size={18} /> Hvorfor denne kontoen?
+      </button>
+      {open && <p className="small" style={{ margin: 0 }}>{text}</p>}
+    </div>
+  );
+}
+
+/**
+ * Forslag laget fra en banklinje (gebyr eller renter). Banklinjen er dokumentasjonen.
+ * Samme to klikk som for kvitteringer: siden åpner gjennomgangen, kunden bekrefter og bokfører.
+ */
+function BankReview({ cid, proposal }: { cid: string; proposal: Proposal }) {
+  const { api } = useAuth();
+  const open = proposal.status === "pending";
+  const [token, setToken] = useState<string | null>(null);
+  const [checked, setChecked] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  const tx = proposal.bank_transaction;
+  const names = proposal.account_names ?? {};
+
+  useEffect(() => {
+    if (!open) return;
+    api.openReview(cid, proposal.id).then((r) => setToken(r.review_token), (e) => setError(e.message));
+  }, [api, cid, proposal.id, open]);
+
+  async function run(fn: () => Promise<string>) {
+    setBusy(true);
+    setError(null);
+    try {
+      setDone(await fn());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <div className="card success">
+        <div className="art"><CheckCircle2 size={44} /></div>
+        <h1>{done}</h1>
+        <div className="stack-sm" style={{ marginTop: 20 }}>
+          <Link className="button primary block" to={`/c/${cid}/bank`}>Tilbake til bank</Link>
+          <Link className="button block" to={`/c/${cid}/innboks`}>Til kontroll</Link>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="stack">
+      <Link className="back" to={`/c/${cid}/innboks`}><ArrowLeft size={18} /> Til kontroll</Link>
+      <div className="review">
+        <section className="original card stack">
+          <div className="spread">
+            <h2>Bank<em>linje</em></h2>
+            <span className="badge neutral"><Landmark size={13} /> Kontoutskrift</span>
+          </div>
+          {tx && (
+            <div className="stack-sm">
+              <div className="value num" style={{ fontSize: "1.6rem" }}><Amount ore={tx.amount_ore} /> kr</div>
+              <div className="muted small">Bokført i banken {formatDate(tx.booking_date)}</div>
+              {tx.description && <div>{tx.description}</div>}
+              {tx.counterparty_name && <div className="muted small">{tx.counterparty_name}</div>}
+              {tx.bank_tx_code && <div className="muted small num">Bankens kode {tx.bank_tx_code}</div>}
+            </div>
+          )}
+        </section>
+        <section className="card stack">
+          <div className="ai-head">
+            <span className="spark"><Sparkles size={20} /></span>
+            <div className="grow">
+              <h2>Forslag fra <em>banken</em></h2>
+              <div className="muted small">Laget etter faste regler. Du bestemmer.</div>
+            </div>
+          </div>
+          {!open && <Notice>Dette forslaget er allerede behandlet.</Notice>}
+          <Why text={proposal.explanation} />
+          {proposal.draft && (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Konto</th><th className="right">Debet / kredit</th></tr></thead>
+                <tbody>
+                  {proposal.draft.lines.map((l, i) => (
+                    <tr key={i}>
+                      <td><span className="acc-no">{l.account}</span>{names[l.account] ?? ""}</td>
+                      <td className="right"><Amount ore={l.amount_ore} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {open && (
+            <>
+              <label className="check confirm">
+                <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} />
+                <span>Jeg har kontrollert posten mot kontoutskriften, og vil bokføre den.</span>
+              </label>
+              <ErrorBox error={error} />
+              <button className="primary block" disabled={!checked || busy || !token}
+                onClick={() => void run(async () => {
+                  const v = await api.approve(cid, proposal.id, token!);
+                  return `Bokført som ${v.series}${v.number}/${v.year}`;
+                })}>
+                {busy ? <span className="spinner" /> : <CheckCircle2 size={20} />} Bokfør
+              </button>
+              {!rejecting ? (
+                <button type="button" className="ghost block" onClick={() => setRejecting(true)}>Ikke bokfør dette</button>
+              ) : (
+                <div className="card tinted stack">
+                  <label htmlFor="reason">Hvorfor?</label>
+                  <input id="reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+                  <button className="danger solid block" disabled={busy || reason.trim().length < 3}
+                    onClick={() => void run(async () => { await api.reject(cid, proposal.id, reason); return "Avvist"; })}>
+                    Avvis forslaget
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </section>
+      </div>
+    </div>
+  );
 }

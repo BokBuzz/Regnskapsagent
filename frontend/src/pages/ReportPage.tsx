@@ -52,10 +52,10 @@ export default function ReportPage() {
               <div className="label"><TrendingDown size={14} /> Kostnader</div>
               <div className="value"><Amount ore={costs} /></div>
             </div>
-            <div className="tile sky" style={{ gridColumn: "1 / -1" }}>
-              <div className="label"><Receipt size={14} /> {vat >= 0 ? "MVA å betale" : "MVA til gode"}</div>
+            <Link className="tile sky" style={{ gridColumn: "1 / -1", textDecoration: "none" }} to={`/c/${cid}/mva`}>
+              <div className="label"><Receipt size={14} /> {vat >= 0 ? "MVA å betale" : "MVA til gode"} · se MVA-melding</div>
               <div className="value"><Amount ore={Math.abs(vat)} /></div>
-            </div>
+            </Link>
           </div>
           <section className="card stack" style={{ padding: 0 }}>
             <div className="spread" style={{ padding: "16px 18px 0" }}>

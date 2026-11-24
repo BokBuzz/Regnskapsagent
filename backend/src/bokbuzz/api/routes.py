@@ -5,13 +5,14 @@ from __future__ import annotations
 
 from datetime import date
 from typing import Annotated, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field, field_validator
 
 from .. import audit, brreg
+from ..bank import service as bank
 from ..documents import service as documents
 from ..errors import NotFound, ValidationFailed
 from ..ledger import service as ledger
@@ -19,6 +20,8 @@ from ..ledger.models import VoucherDraft
 from ..ledger.money import oslo_today
 from ..proposals.validation import valid_orgnr
 from ..review import service as review
+from ..vat import return_draft as vat_return
+from ..vat.submission import NotConfigured
 from .deps import CompanyDep, PrincipalDep, ServicesDep
 
 router = APIRouter()
@@ -190,8 +193,13 @@ def get_proposal(proposal_id: UUID, ctx: CompanyDep, services: ServicesDep) -> d
                            [ctx.company_id, proposal_id]).fetchone()
         if not row:
             raise NotFound("Forslaget finnes ikke")
-        doc = documents.get_document(conn, ctx.company_id, row["document_id"])
-    return {**row, "document": doc}
+        doc = documents.get_document(conn, ctx.company_id, row["document_id"]) if row["document_id"] else None
+        tx = conn.execute("select * from bokbuzz.bank_transactions where company_id = %s and id = %s",
+                          [ctx.company_id, row["bank_transaction_id"]]).fetchone() \
+            if row["bank_transaction_id"] else None
+        names = {a["number"]: a["name"] for a in conn.execute(
+            "select number, name from bokbuzz.accounts where company_id = %s", [ctx.company_id]).fetchall()}
+    return {**row, "document": doc, "bank_transaction": tx, "account_names": names}
 
 
 @router.post("/companies/{company_id}/proposals/{proposal_id}/review")
@@ -282,3 +290,87 @@ def verify_audit(ctx: CompanyDep, services: ServicesDep) -> dict:
     if bad is not None:
         raise HTTPException(409, detail={"error": "audit_chain_broken", "first_bad_seq": bad})
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Bank (kontoutskrift, avstemming)
+# ---------------------------------------------------------------------------
+@router.post("/companies/{company_id}/bank/statements", status_code=201)
+def import_bank_statement(ctx: CompanyDep, services: ServicesDep, response: Response,
+                          file: Annotated[UploadFile, File()]) -> dict:
+    """Importerer en CAMT.053-fil fra nettbanken. Avstemmingen kjører i bakgrunnen etterpå."""
+    limit = services.settings.max_upload_bytes * 10
+    data = file.file.read(limit + 1)
+    with services.db.tx(ctx.user_id) as conn:
+        results = bank.import_statement(conn, services.storage, company_id=ctx.company_id, actor=ctx.user_id,
+                                        data=data, filename=file.filename, max_bytes=limit)
+    if all(r["duplicate"] for r in results):
+        response.status_code = 200
+    return {"statements": results}
+
+
+@router.get("/companies/{company_id}/bank/statements")
+def list_bank_statements(ctx: CompanyDep, services: ServicesDep) -> list[dict]:
+    with services.db.tx(ctx.user_id) as conn:
+        return conn.execute(
+            "select s.*, a.account_id from bokbuzz.bank_statements s"
+            " join bokbuzz.bank_accounts a on a.id = s.bank_account_id"
+            " where s.company_id = %s order by s.created_at desc limit 200", [ctx.company_id]).fetchall()
+
+
+@router.get("/companies/{company_id}/bank/transactions")
+def list_bank_transactions(ctx: CompanyDep, services: ServicesDep,
+                           status: Annotated[Literal["matched", "suggested", "proposed", "missing_document"]
+                                             | None, Query()] = None,
+                           date_from: Annotated[date | None, Query(alias="from")] = None,
+                           date_to: Annotated[date | None, Query(alias="to")] = None) -> list[dict]:
+    with services.db.tx(ctx.user_id) as conn:
+        return bank.list_transactions(conn, ctx.company_id, status, date_from, date_to)
+
+
+@router.get("/companies/{company_id}/bank/reconciliation")
+def bank_reconciliation(ctx: CompanyDep, services: ServicesDep) -> list[dict]:
+    with services.db.tx(ctx.user_id) as conn:
+        return bank.reconciliation_status(conn, ctx.company_id)
+
+
+@router.post("/companies/{company_id}/bank/reconcile", status_code=202)
+def request_bank_reconcile(ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        ledger.require_role(conn, ctx.company_id, ctx.user_id, ledger.POSTING_ROLES)
+        bank.request_reconcile(conn, ctx.company_id, "manual", uuid4().hex)
+    return {"queued": True}
+
+
+class MatchDecision(BaseModel):
+    accept: bool
+
+
+@router.post("/companies/{company_id}/bank/matches/{match_id}")
+def decide_bank_match(match_id: UUID, body: MatchDecision, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        return bank.decide_match(conn, company_id=ctx.company_id, actor=ctx.user_id, match_id=match_id,
+                                 accept=body.accept)
+
+
+# ---------------------------------------------------------------------------
+# MVA-melding (utkast; innsending kobles på når tilgangene er på plass)
+# ---------------------------------------------------------------------------
+@router.get("/companies/{company_id}/vat-returns/{year}/{term}")
+def vat_return_draft(year: int, term: int, ctx: CompanyDep, services: ServicesDep) -> dict:
+    with services.db.tx(ctx.user_id) as conn:
+        draft = vat_return.compute(conn, ctx.company_id, year, term)
+    return {**draft, "submission_available": not isinstance(_vat_client(services), NotConfigured)}
+
+
+@router.get("/companies/{company_id}/vat-returns/{year}/{term}/xml")
+def vat_return_xml(year: int, term: int, ctx: CompanyDep, services: ServicesDep) -> Response:
+    with services.db.tx(ctx.user_id) as conn:
+        draft = vat_return.compute(conn, ctx.company_id, year, term)
+    xml = vat_return.to_xml(draft, system_version="0.1.0", reference=f"{ctx.company_id}:{year}:{term}")
+    return Response(content=xml, media_type="application/xml",
+                    headers={"content-disposition": f'attachment; filename="mva-{year}-{term}.xml"'})
+
+
+def _vat_client(services):
+    return getattr(services, "vat_client", None) or NotConfigured()

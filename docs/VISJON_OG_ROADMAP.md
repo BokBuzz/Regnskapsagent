@@ -47,7 +47,7 @@ Fiken har over ti år og et stort team bak seg. Bokbuzz har én utvikler. Det be
 
 ## 3. Fiken-funksjoner mot Bokbuzz i dag
 
-Tegn: ✅ finnes på `main` · 🟡 i PR #3 (ikke merget) · ⬜ ikke startet.
+Tegn: ✅ finnes på `main` · 🟡 i PR #3 (ikke merget) · ⬜ ikke startet. \* = bygget i PR #4 (bankagent v1 og MVA-utkast; innsending venter på tilgang).
 Fase viser når det kommer (se kapittel 4).
 
 ### Regnskap og bokføring
@@ -58,7 +58,7 @@ Fase viser når det kommer (se kapittel 4).
 | Dobbelt bokholderi | ✅ | – | Balanse sjekkes i kode og i databasen |
 | Automatiske konteringsforslag | ✅ | – | Gemini via Vertex AI EU, validert mot regler |
 | MVA-håndtering per linje | ✅ | – | MVA-koder og satser med gyldighetsdato |
-| MVA-melding og innsending | ⬜ | 1 | Skatteetatens API for MVA-melding, se kap. 6 |
+| MVA-melding og innsending | 🟡* | 1 | Skatteetatens API for MVA-melding, se kap. 6 |
 | Revisjonsspor | ✅ | – | Hash-kjede per selskap, uforanderlige bilag |
 | Hovedbok og saldobalanse | ✅ / 🟡 | – | Rapportside i PR #3 |
 | SAF-T Regnskap (eksport) | ⬜ | 1 | Lovpålagt ved forespørsel; trengs også for å bytte system |
@@ -95,8 +95,8 @@ Fase viser når det kommer (se kapittel 4).
 
 | Funksjon | I dag | Fase | Merknad |
 |---|---|---|---|
-| Import av kontoutskrift (CAMT.053) | ⬜ | 1 | Fil fra nettbanken; ingen avtale trengs |
-| Automatisk avstemming og matching | ⬜ | 1 | Regler først (KID, beløp, dato), KI for resten |
+| Import av kontoutskrift (CAMT.053) | ✅* | 1 | Fil fra nettbanken; ingen avtale trengs |
+| Automatisk avstemming og matching | ✅* | 1 | Regler (beløp, dato); KID-matching kommer med faktura |
 | PSD2 / åpen bank (lesetilgang) | ⬜ | 2 | Via lisensiert leverandør, se kap. 6 |
 | Flere banker | ⬜ | 2 | Følger av PSD2-leverandøren |
 | Betaling og godkjenning fra Bokbuzz | ⬜ | 3 | Betalingsinitiering; banken krever sterk autentisering |

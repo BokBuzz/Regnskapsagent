@@ -86,6 +86,20 @@ def _over_cap(router: ModelRouter, spent: int) -> bool:
     return router.monthly_cap_micro_usd is not None and spent >= router.monthly_cap_micro_usd
 
 
+def explain(ex: Extraction, accounts: dict[str, dict], vat_names: dict[str, str]) -> str:
+    """Forklaringen brukeren ser under «Hvorfor?». Fast tekst om valgte kontoer og koder
+    (alltid riktig), pluss modellens egen begrunnelse når den finnes."""
+    parts = []
+    for ln in ex.lines:
+        acc = accounts.get(ln.account, {})
+        parts.append(f"{ln.description or 'Linjen'} er ført på {ln.account} {acc.get('name', '')}".rstrip()
+                     + f" med MVA-kode {ln.vat_code} ({vat_names.get(ln.vat_code, 'ukjent kode')}).")
+    base = " ".join(parts)
+    if ex.explanation:
+        base += " KI-ens begrunnelse: " + ex.explanation.strip()
+    return base[:1000]
+
+
 def build_draft(ex: Extraction, org_form: str = "ENK") -> VoucherDraft:
     assert ex.document_date is not None
     lines = [DraftLine(account=ln.account, amount_ore=ln.net_amount_ore, vat_code=ln.vat_code,
@@ -165,17 +179,18 @@ def generate_proposal(
             draft = None
 
     status = "pending" if draft is not None else "needs_manual"
+    explanation = explain(ex, accounts, {v["code"]: v["description"] for v in vat_list}) if ex else None
     row = conn.execute(
         "insert into bokbuzz.proposals (company_id, document_id, status, model, prompt_version, rules_version,"
-        " input_hash, extraction, draft, draft_hash, validation_errors, warnings, escalated, usage)"
-        " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " input_hash, extraction, draft, draft_hash, validation_errors, warnings, escalated, usage, explanation)"
+        " values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
         " on conflict (document_id, input_hash) do nothing returning *",
         [company_id, document_id, status, model.name, PROMPT_VERSION, rv, input_hash,
          Jsonb(json.loads(ex.model_dump_json())) if ex else None,
          Jsonb(draft.model_dump(mode="json")) if draft else None,
          content_hash(draft) if draft else None,
          Jsonb([f.as_dict() for f in errors]), Jsonb([f.as_dict() for f in warnings]), escalated,
-         Jsonb(usage_all)],
+         Jsonb(usage_all), explanation],
     ).fetchone()
     if row is None:
         return conn.execute(

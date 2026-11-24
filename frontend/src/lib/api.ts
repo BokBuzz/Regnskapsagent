@@ -14,6 +14,7 @@ export interface Company {
   name: string;
   role?: string;
   vat_registered: boolean;
+  vat_term?: "bimonthly" | "annual";
   org_form: OrgForm;
   modules: Module[];
 }
@@ -56,9 +57,70 @@ export interface DocumentRow {
   created_at: string;
 }
 
+export interface BankTransaction {
+  id: string;
+  booking_date: string;
+  amount_ore: number;
+  counterparty_name: string | null;
+  reference: string | null;
+  description: string | null;
+  bank_tx_code: string | null;
+  status?: "matched" | "suggested" | "proposed" | "missing_document";
+  match?: { id: string; status: "suggested" | "confirmed"; method: string; explanation: string } | null;
+  voucher?: { series: string; number: number; year: number; voucher_date: string; description: string } | null;
+  proposal_id?: string | null;
+}
+
+export interface BankReconciliation {
+  bank_account: { id: string; account_id: string; ledger_account: string; name: string | null };
+  as_of: string | null;
+  bank_balance_ore: number | null;
+  ledger_balance_ore: number | null;
+  difference_ore: number | null;
+  counts: Partial<Record<NonNullable<BankTransaction["status"]>, number>>;
+}
+
+export interface BankStatement {
+  id: string;
+  from_date: string | null;
+  to_date: string | null;
+  entry_count: number;
+  new_count: number;
+  balance_ok: boolean | null;
+  duplicate: boolean;
+}
+
+export interface VatReturnLine {
+  code: string;
+  description: string;
+  direction: "input" | "output";
+  rate_bp: number | null;
+  base_ore: number;
+  vat_ore: number;
+}
+
+export interface VatReturn {
+  year: number;
+  term: number;
+  kind: "bimonthly" | "annual";
+  label: string;
+  from: string;
+  to: string;
+  due: string;
+  lines: VatReturnLine[];
+  total_ore: number;
+  result: "to_pay" | "refund" | "zero";
+  checks: { code: string; severity: "error" | "warning" | "info"; message: string }[];
+  submission_available: boolean;
+}
+
 export interface Proposal {
   id: string;
-  document_id: string;
+  document_id: string | null;
+  bank_transaction_id?: string | null;
+  bank_transaction?: BankTransaction | null;
+  explanation?: string | null;
+  account_names?: Record<string, string>;
   status: "pending" | "approved" | "rejected" | "needs_manual";
   model: string | null;
   draft: VoucherDraft | null;
@@ -164,6 +226,28 @@ export class Api {
     return this.request<DocumentRow & { duplicate: boolean }>("POST", `/companies/${cid}/documents`, undefined, form);
   };
   documents = (cid: string) => this.request<DocumentRow[]>("GET", `/companies/${cid}/documents`);
+
+  async download(path: string): Promise<Blob> {
+    const token = await this.token();
+    const resp = await fetch(this.baseUrl + path, { headers: token ? { authorization: `Bearer ${token}` } : {} });
+    if (!resp.ok) throw new ApiError(resp.status, "error", "Kunne ikke laste ned filen");
+    return resp.blob();
+  }
+
+  importBankStatement = (cid: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return this.request<{ statements: BankStatement[] }>("POST", `/companies/${cid}/bank/statements`, undefined, form);
+  };
+  bankTransactions = (cid: string, status?: string) =>
+    this.request<BankTransaction[]>("GET", `/companies/${cid}/bank/transactions${status ? `?status=${status}` : ""}`);
+  bankReconciliation = (cid: string) => this.request<BankReconciliation[]>("GET", `/companies/${cid}/bank/reconciliation`);
+  reconcileBank = (cid: string) => this.request<{ queued: boolean }>("POST", `/companies/${cid}/bank/reconcile`);
+  decideMatch = (cid: string, matchId: string, accept: boolean) =>
+    this.request<{ status: string }>("POST", `/companies/${cid}/bank/matches/${matchId}`, { accept });
+  vatReturn = (cid: string, year: number, term: number) =>
+    this.request<VatReturn>("GET", `/companies/${cid}/vat-returns/${year}/${term}`);
+  vatReturnXml = (cid: string, year: number, term: number) => this.download(`/companies/${cid}/vat-returns/${year}/${term}/xml`);
 
   async documentBlob(cid: string, documentId: string): Promise<Blob> {
     const token = await this.token();
