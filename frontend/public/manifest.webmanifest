@@ -1,0 +1,10 @@
+{
+  "name": "Bokbuzz regnskap",
+  "short_name": "Bokbuzz",
+  "lang": "nb",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf7f1",
+  "theme_color": "#1b1814",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

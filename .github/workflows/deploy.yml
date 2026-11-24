@@ -1,0 +1,55 @@
+name: Deploy
+
+# Bygger containeren og ruller den ut til Cloud Run. Kjører bare når eier har satt
+# repo-variablene under (Settings → Secrets and variables → Actions → Variables):
+#   GCP_PROJECT_ID, GCP_REGION, GCP_ARTIFACT_REPO, GCP_WIF_PROVIDER, GCP_DEPLOYER_SA
+# Ingen nøkler: innlogging skjer med Workload Identity Federation, låst til main.
+# Databasemigrasjoner kjøres manuelt FØR en PR med ny migrasjon merges (se docs/OPPSETT.md).
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: vars.GCP_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      IMAGE: ${{ vars.GCP_ARTIFACT_REPO }}/backend:${{ github.sha }}
+      REGION: ${{ vars.GCP_REGION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Bygg og last opp bilde
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" backend
+          docker push "$IMAGE"
+
+      - name: Rull ut API
+        run: gcloud run deploy bokbuzz-api --image "$IMAGE" --region "$REGION" --quiet
+
+      - name: Rull ut arbeider
+        run: gcloud run deploy bokbuzz-worker --image "$IMAGE" --region "$REGION" --quiet
+
+      - name: Helsesjekk
+        run: |
+          url=$(gcloud run services describe bokbuzz-api --region "$REGION" --format 'value(status.url)')
+          curl -fsS "$url/health"

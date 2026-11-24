@@ -11,8 +11,8 @@ from .base import ModelRequest, ModelResponse
 DEMO_RESPONSE: dict[str, Any] = {
     "document_kind": "receipt",
     "supplier_name": "Demo Bensinstasjon AS",
-    "supplier_orgnr": None,
-    "document_date": None,
+    "supplier_orgnr": "923609016",
+    "document_date": None,  # settes til dagens dato ved kall
     "currency": "NOK",
     "total_amount_ore": 62500,
     "payment": "bank",
@@ -25,6 +25,12 @@ DEMO_RESPONSE: dict[str, Any] = {
 }
 
 
+def _demo(_: ModelRequest) -> dict[str, Any]:
+    from ..ledger.money import oslo_today
+
+    return {**DEMO_RESPONSE, "document_date": oslo_today().isoformat()}
+
+
 class FakeModel:
     def __init__(
         self,
@@ -32,7 +38,7 @@ class FakeModel:
         response: dict[str, Any] | str | Callable[[ModelRequest], dict[str, Any] | str] | None = None,
     ) -> None:
         self.name = name
-        self.response = DEMO_RESPONSE if response is None else response
+        self.response = _demo if response is None else response
         self.calls: list[ModelRequest] = []
 
     def generate(self, request: ModelRequest) -> ModelResponse:

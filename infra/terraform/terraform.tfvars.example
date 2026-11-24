@@ -1,0 +1,5 @@
+# Kopier til terraform.tfvars (ikke sjekk den inn).
+project_id            = "bokbuzz-prod"
+documents_bucket_name = "bokbuzz-prod-bilag"
+# region              = "europe-west4"
+# lock_documents_retention = false   # true KAN IKKE ANGRES

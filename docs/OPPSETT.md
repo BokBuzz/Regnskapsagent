@@ -39,22 +39,85 @@ BOKBUZZ_MIGRATION_DATABASE_URL='postgresql://postgres:<pw>@<host>:5432/postgres'
 
 ## 2. Google Cloud (API, arbeider, lagring, KI)
 
-1. Opprett et prosjekt kun for Bokbuzz, med fakturering.
-2. Slå på API-ene: Cloud Run, Artifact Registry, Cloud Storage, Secret Manager, Vertex AI.
-3. **Lagring av originalbilag**: opprett en bøtte i EU (f.eks. `europe-west4`), med
-   *uniform bucket-level access*, versjonering, og en oppbevaringsregel på minst 5 år + inneværende år.
-   Lås regelen (Bucket Lock) først når regnskapsfører har bekreftet fristen – låsen kan ikke angres.
-4. **Tjenestekontoer**: én for API og én for arbeider. API trenger `Storage Object Creator` +
-   `Storage Object Viewer` på bøtta. Arbeideren trenger `Storage Object Viewer` og `Vertex AI User`.
-   Ingen av dem skal ha slette-rettigheter i bøtta.
-5. **Secret Manager**: legg inn `BOKBUZZ_DATABASE_URL` (én per tjeneste, med riktig rolle) og eventuelt
-   `BOKBUZZ_SUPABASE_JWT_SECRET` hvis du ikke bruker JWKS.
-6. **Cloud Run** (`europe-west4`): to tjenester fra samme bilde (`backend/Dockerfile`):
-   - API: standardkommando. Miljø: `BOKBUZZ_ENVIRONMENT=prod`, `BOKBUZZ_SUPABASE_URL=https://ihmjkupqpgixmnguixds.supabase.co`,
-     `BOKBUZZ_STORAGE_BACKEND=gcs`, `BOKBUZZ_GCS_BUCKET=<bøtte>`.
-   - Arbeider: kommando `python -m bokbuzz.worker`, minst én instans, CPU alltid tildelt. I tillegg
-     `BOKBUZZ_AI_PROVIDER=vertex`, `BOKBUZZ_GCP_PROJECT=<prosjekt>`, `BOKBUZZ_VERTEX_LOCATION=eu`.
-7. Godta Googles databehandleravtale (Cloud Data Processing Addendum) i konsollen.
+Alt i Google Cloud beskrives som kode i `infra/terraform`. Du oppretter prosjektet og fakturering selv,
+og kjører Terraform fra din egen maskin (eller Cloud Shell). Claude har ikke opprettet noe.
+
+### 2.1 Engangsoppsett i konsollen (ca. 15 min)
+
+1. Gå til <https://console.cloud.google.com/projectcreate> og lag prosjektet, f.eks. `bokbuzz-prod`.
+   Koble det til en faktureringskonto.
+2. Sett et **budsjettvarsel** under *Billing → Budgets & alerts*, f.eks. 30 USD/mnd med varsel ved 50/90/100 %.
+3. Godta **Cloud Data Processing Addendum** under *IAM & Admin → Settings / Privacy & Security*.
+4. Åpne **Cloud Shell** (ikonet `>_` øverst til høyre). Den har `gcloud` og `terraform` ferdig installert.
+
+### 2.2 Terraform (ca. 10 min)
+
+Kjør i Cloud Shell, bytt ut `bokbuzz-prod` med ditt prosjekt:
+
+```bash
+export PROJECT=bokbuzz-prod
+gcloud config set project $PROJECT
+
+# Bøtte for Terraform-tilstand (én gang)
+gcloud storage buckets create gs://$PROJECT-tfstate --location=europe-west4 \
+  --uniform-bucket-level-access --public-access-prevention
+gcloud storage buckets update gs://$PROJECT-tfstate --versioning
+
+git clone https://github.com/BokBuzz/Regnskapsagent.git && cd Regnskapsagent/infra/terraform
+cp terraform.tfvars.example terraform.tfvars   # rediger project_id og documents_bucket_name
+terraform init -backend-config="bucket=$PROJECT-tfstate"
+terraform plan      # les gjennom
+terraform apply
+```
+
+Dette lager: API-er, Artifact Registry, bøtta for originalbilag (versjonert, ikke offentlig, med
+oppbevaringsregel som **ikke** er låst ennå), tre tjenestekontoer med minste rettigheter, to
+hemmeligheter uten verdi, Cloud Run-tjenestene `bokbuzz-api` og `bokbuzz-worker` (med et
+plassholderbilde), og nøkkelfri innlogging for GitHub Actions begrenset til `main`.
+
+### 2.3 Hemmeligheter (database-URL-er)
+
+Lag først innloggingsrollene i Supabase (punkt 1.4), og legg så inn URL-ene **uten å lime dem i chat**:
+
+```bash
+# Session pooler, port 5432. Brukernavn har formen <rolle>.ihmjkupqpgixmnguixds
+printf '%s' 'postgresql://bokbuzz_api.ihmjkupqpgixmnguixds:<passord>@<pooler-host>:5432/postgres?sslmode=require' \
+  | gcloud secrets versions add bokbuzz-api-database-url --data-file=-
+printf '%s' 'postgresql://bokbuzz_jobs.ihmjkupqpgixmnguixds:<passord>@<pooler-host>:5432/postgres?sslmode=require' \
+  | gcloud secrets versions add bokbuzz-worker-database-url --data-file=-
+```
+
+Pooler-host finner du i Supabase under *Connect → Session pooler*.
+
+### 2.4 Sjekk at KI-modellene virker på EU-endepunktet
+
+```bash
+cd ~/Regnskapsagent/backend && pip install -e '.[gcp]'
+gcloud auth application-default login
+BOKBUZZ_AI_PROVIDER=vertex BOKBUZZ_GCP_PROJECT=$PROJECT python -m bokbuzz.ai.smoke
+```
+
+Kommandoen sender en oppdiktet kvittering (ingen kundedata) til begge modellene og viser svar, tokenbruk og
+kostnad. Får du «model not found», finn riktige modell-ID-er i Vertex AI Model Garden og sett
+`model_default` / `model_escalation` i `terraform.tfvars` og `BOKBUZZ_MODEL_DEFAULT` /
+`BOKBUZZ_MODEL_ESCALATION` lokalt, og oppdater `model_prices` i `backend/src/bokbuzz/config.py`.
+
+### 2.5 Koble GitHub til deploy
+
+1. Kjør `terraform output` og noter `artifact_repository`, `workload_identity_provider` og
+   `deployer_service_account`.
+2. I GitHub: *Settings → Environments → New environment* `production` (gjerne med deg selv som
+   påkrevd godkjenner).
+3. *Settings → Secrets and variables → Actions → Variables*, legg inn:
+   `GCP_PROJECT_ID`, `GCP_REGION` (`europe-west4`), `GCP_ARTIFACT_REPO`, `GCP_WIF_PROVIDER`, `GCP_DEPLOYER_SA`.
+4. Kjør workflowen **Deploy** manuelt (*Actions → Deploy → Run workflow*). Den bygger bildet, ruller ut
+   API og arbeider, og sjekker `/health`. Etter det deployes hver merge til `main` automatisk.
+
+### 2.6 Senere
+
+- **Lås oppbevaringen** først når regnskapsfører har bekreftet fristen: sett `lock_documents_retention = true`
+  og kjør `terraform apply`. Det kan aldri angres, og bøtta kan da ikke slettes før fristen er ute.
+- Nye databasemigrasjoner kjøres manuelt mot Supabase **før** PR-en som trenger dem merges.
 
 ## 3. Ting som må verifiseres før første ekte bilag
 
