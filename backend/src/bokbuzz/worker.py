@@ -10,6 +10,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import jobs
+from .bank.service import reconcile_job
 from .config import get_settings
 from .db import Database
 from .proposals.service import extract_document_job
@@ -47,7 +48,8 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO)
     settings = get_settings()
     db = Database(settings.database_url, settings.db_worker_role, max_size=2)
-    handlers = {"extract_document": extract_document_job(build_storage(settings), build_router(settings))}
+    handlers = {"extract_document": extract_document_job(build_storage(settings), build_router(settings)),
+                "bank_reconcile": reconcile_job()}
     stopping = False
 
     def stop(*_):

@@ -38,6 +38,22 @@ koblet til ekte kunder, skytjenester eller KI ennå.
 
 **Migrasjon 0004 må kjøres i Supabase før denne koden tas i bruk** (`python -m bokbuzz.migrate`).
 
+## Runde 4 (24.11.2026): bankagent v1, «Hvorfor?» og MVA-utkast
+
+| Område | Hva | Testet |
+|---|---|---|
+| Kontoutskrift | Import av CAMT.053 (alle versjoner fra .001.02) med `defusedxml`, beløp i øre uten flyttall, bare bokførte poster, saldokontroll (inngående + poster = utgående), filen lagres innholdsadressert | Samme fil to ganger og overlappende perioder gir ingen dobbeltposter; entitetstriks og feil filtyper avvises |
+| Bankdata | Tabellene `bank_accounts`, `bank_statements`, `bank_transactions` (uforanderlige), `bank_matches` | Endring og sletting stoppes av databasen |
+| Avstemming | Regelstyrt i arbeideren (jobb `bank_reconcile`): samme beløp på bankkontoen, datovindu −14/+3 dager, eneste treff eller klart nærmeste dato. Like nære treff gir ingen gjetning. Kunden bekrefter eller avviser; avvist par foreslås aldri igjen. Kjøres etter import og etter hver bokføring | 8 tester |
+| Forslag fra banklinjer | Gebyr (7770) og renter (8050/8150) etter bankens transaksjonskode eller entydig tekst. Kontoutskriften er dokumentasjonen. Godkjennes i to klikk som andre forslag, og avstemmes automatisk når de bokføres | 4 tester |
+| Mangler bilag | Banklinjer uten bilag eller forslag vises som «Mangler bilag» med snarvei til opplasting | |
+| Avstemmingsstatus | Saldo i banken mot saldo i hovedboken på samme dato, per bankkonto | 1 test |
+| «Hvorfor?» | Feltet `explanation` på alle forslag: fast tekst om konto og MVA-kode pluss KI-ens begrunnelse (instruks `receipt-nb-v4`) | 1 test |
+| MVA-melding | Beregning per termin, kontroller før innsending, XML-utkast. Innsending venter på tilgang (se `docs/MVA_MELDING.md`) | 10 tester |
+| App | Ny fane «Bank» (import, avstemming, bekreft/avvis), forslag fra banklinjer med egen visning, «Hvorfor denne kontoen?», skjermen «MVA-melding» via Saldo | `tsc`, vitest, bygg; hele flyten kjørt i nettleser mot lokal backend |
+
+**Migrasjon 0005 må kjøres i Supabase (etter 0004) før denne koden tas i bruk.**
+
 ## Gjenstår (neste runder)
 
 - **Fase 0 (eier):** rotere lekket legitimasjon, deaktivere n8n-webhooken, regnskapsfører starter
@@ -49,7 +65,8 @@ koblet til ekte kunder, skytjenester eller KI ennå.
   kontoplan og MVA-koder, flere bilagsserier.
 - **Fase 3:** mobil-PWA (React) for opplasting og godkjenningskø, leverandørregler før KI, gullstandard-sett
   (200 bilag), kostnadstak per selskap, utenlandsk valuta og kreditnotaer i forslag.
-- **Fase 4–6:** CAMT.053, taxioppgjør og avstemming, MVA-melding, SAF-T, pliktige spesifikasjoner.
+- **Fase 4–6:** taxioppgjør, innsending av MVA-melding (venter på tilgang), MVA-oppgjørsbilag, SAF-T,
+  pliktige spesifikasjoner. Bank: fakturamatching på KID, flere bankkontoer mot ulike hovedbokskontoer, utenlandsk valuta.
 
 ## Bevisste valg som bør vurderes
 

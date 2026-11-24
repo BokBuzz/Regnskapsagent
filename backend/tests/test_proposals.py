@@ -9,6 +9,7 @@ from conftest import auth, fake_jpeg
 from bokbuzz import jobs
 from bokbuzz.ai.base import ModelRouter
 from bokbuzz.ai.fake import FakeModel
+from bokbuzz.bank.service import reconcile_job
 from bokbuzz.proposals.service import extract_document_job
 
 
@@ -32,7 +33,7 @@ def upload(client, company, user, seed="p") -> str:
 
 
 def run_jobs(worker_db, storage, router, company) -> None:
-    handlers = {"extract_document": extract_document_job(storage, router)}
+    handlers = {"extract_document": extract_document_job(storage, router), "bank_reconcile": reconcile_job()}
     while jobs.run_once(worker_db, handlers, company_id=company):
         pass
 
@@ -171,3 +172,20 @@ def test_same_document_twice_gives_one_proposal(client, app_db, worker_db, stora
     run_jobs(worker_db, storage, router, company)
     assert len(proposals(app_db, user, company)) == 1
     assert json.dumps(proposals(app_db, user, company)[0]["draft"])
+
+
+def test_proposal_explains_why_account_and_vat_code(client, app_db, worker_db, storage, company, user):
+    upload(client, company, user, seed="why")
+    ex = receipt(explanation="Diesel er drivstoff til bilen.")
+    run_jobs(worker_db, storage, ModelRouter(FakeModel("lite", ex), FakeModel("strong", ex)), company)
+    [p] = proposals(app_db, user, company)
+    assert p["explanation"].startswith("Diesel 30 l er ført på 7000 Drivstoff og lading med MVA-kode 1")
+    assert p["explanation"].endswith("KI-ens begrunnelse: Diesel er drivstoff til bilen.")
+    assert p["prompt_version"] == "receipt-nb-v4"
+    assert "explanation" in default_schema_fields()
+
+
+def default_schema_fields() -> set[str]:
+    from bokbuzz.proposals.schema import response_schema
+
+    return set(response_schema()["properties"])

@@ -173,7 +173,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* Bunnmeny: sort, med honning som aksent */
 .tabs { position: fixed; left: 14px; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom)); z-index: 20;
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px;
+  display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 6px;
   background: #1b1814; border-radius: 18px; box-shadow: 0 24px 48px -20px rgba(27, 24, 20, 0.6); }
 @media (prefers-color-scheme: dark) { .tabs { background: #2a251f; } }
 .tabs a { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 4px; border-radius: 13px;
@@ -324,7 +324,7 @@ tr.total td .num { font-size: 1rem; }
 @media (min-width: 860px) {
   .review { grid-template-columns: 1fr 1fr; align-items: start; }
   .review .original { position: sticky; top: 88px; }
-  .tabs { left: 50%; right: auto; transform: translateX(-50%); width: 520px; }
+  .tabs { left: 50%; right: auto; transform: translateX(-50%); width: 600px; }
   .tiles { grid-template-columns: repeat(4, 1fr); }
   .tile.wide { grid-column: span 2; grid-row: span 2; }
   h1 { font-size: 3.2rem; }

@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
-import { BookCheck, Camera, Inbox, LogOut, PieChart } from "lucide-react";
+import { BookCheck, Camera, Inbox, Landmark, LogOut, PieChart } from "lucide-react";
 import { LogoMark } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { useLoad } from "../lib/useLoad";
@@ -35,6 +35,7 @@ export default function CompanyLayout() {
           <Inbox size={22} />Til kontroll
           {pending?.length ? <span className="count">{pending.length}</span> : null}
         </NavLink>
+        <NavLink to="bank"><Landmark size={22} />Bank</NavLink>
         <NavLink to="bilag"><BookCheck size={22} />Bokført</NavLink>
         <NavLink to="rapport"><PieChart size={22} />Saldo</NavLink>
       </nav>

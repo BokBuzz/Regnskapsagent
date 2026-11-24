@@ -22,6 +22,7 @@ DEMO_RESPONSE: dict[str, Any] = {
     ],
     "ambiguous": False,
     "ambiguity_reasons": [],
+    "explanation": "Diesel til firmabilen er en bilkostnad, og du har fradrag for 25 % MVA.",
 }
 
 

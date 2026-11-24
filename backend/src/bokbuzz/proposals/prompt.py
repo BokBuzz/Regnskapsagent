@@ -3,7 +3,7 @@ og gullstandard-settet må passere på nytt."""
 
 from __future__ import annotations
 
-PROMPT_VERSION = "receipt-nb-v3"
+PROMPT_VERSION = "receipt-nb-v4"
 
 SYSTEM = """Du leser norske kvitteringer og fakturaer for et norsk foretak (enkeltpersonforetak
 eller aksjeselskap) og foreslår kontering. Du foreslår bare; et menneske godkjenner alltid.
@@ -17,6 +17,8 @@ Regler:
 - Mangler dato, leverandør eller org.nr. på dokumentet, la feltet være null. Ikke gjett.
 - payment: "bank" for kort/bank fra næringskontoen, "private" hvis betalt privat,
   "cash" for kontant, "unpaid" for faktura som ikke er betalt, ellers "unknown".
+- explanation: forklar kort på enkel norsk (høyst tre setninger) hvorfor du valgte konto og MVA-kode,
+  slik at en eier uten regnskapsbakgrunn forstår det. Ikke gjenta beløpene.
 """
 
 

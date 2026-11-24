@@ -28,7 +28,7 @@ def test_other_user_gets_404_on_every_company_route(client, app_db, user):
     doc = client.post(f"/companies/{victim}/documents",
                       files={"file": ("a.jpg", fake_jpeg("v"), "image/jpeg")}, headers=auth(user)).json()
     real_ids = {"voucher_id": posted.id, "document_id": doc["id"], "proposal_id": uuid.uuid4(),
-                "year": 2026, "month": 3}
+                "year": 2026, "month": 3, "match_id": uuid.uuid4(), "term": 1}
     attacker = uuid.uuid4()
     create_company(app_db, attacker)  # angriperen har et eget selskap
 
@@ -37,10 +37,10 @@ def test_other_user_gets_404_on_every_company_route(client, app_db, user):
         url = path.replace("{company_id}", str(victim))
         url = re.sub(r"\{(\w+)\}", lambda m: str(real_ids[m.group(1)]), url)
         kwargs = {"headers": auth(attacker)}
-        if method == "POST" and url.endswith("/documents"):
+        if method == "POST" and (url.endswith("/documents") or url.endswith("/bank/statements")):
             kwargs["files"] = {"file": ("b.jpg", fake_jpeg("att"), "image/jpeg")}
         elif method == "POST":
-            kwargs["json"] = {"reason": "angrep", "confirm": True, "review_token": "x" * 20}
+            kwargs["json"] = {"reason": "angrep", "confirm": True, "review_token": "x" * 20, "accept": True}
         if url.endswith("trial-balance"):
             url += "?from=2026-01-01&to=2026-12-31"
         r = client.request(method, url, **kwargs)

@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth";
+import BankPage from "./pages/BankPage";
 import CompaniesPage from "./pages/CompaniesPage";
 import CompanyLayout from "./pages/CompanyLayout";
 import InboxPage from "./pages/InboxPage";
@@ -8,6 +9,7 @@ import MfaPage from "./pages/MfaPage";
 import ProposalPage from "./pages/ProposalPage";
 import ReportPage from "./pages/ReportPage";
 import UploadPage from "./pages/UploadPage";
+import VatPage from "./pages/VatPage";
 import VoucherPage from "./pages/VoucherPage";
 import VouchersPage from "./pages/VouchersPage";
 
@@ -26,7 +28,9 @@ export default function App() {
         <Route path="innboks/:pid" element={<ProposalPage />} />
         <Route path="bilag" element={<VouchersPage />} />
         <Route path="bilag/:vid" element={<VoucherPage />} />
+        <Route path="bank" element={<BankPage />} />
         <Route path="rapport" element={<ReportPage />} />
+        <Route path="mva" element={<VatPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

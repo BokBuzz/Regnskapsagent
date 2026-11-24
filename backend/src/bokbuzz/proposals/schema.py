@@ -31,6 +31,7 @@ class Extraction(BaseModel):
     lines: list[ExtractedLine] = Field(min_length=1, max_length=50)
     ambiguous: bool = False
     ambiguity_reasons: list[str] = Field(default_factory=list, max_length=10)
+    explanation: str | None = Field(default=None, max_length=600)
 
 
 def response_schema() -> dict:

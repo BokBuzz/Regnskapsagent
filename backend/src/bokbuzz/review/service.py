@@ -16,6 +16,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from .. import audit
+from ..bank import service as bank
 from ..db import Conn
 from ..errors import Conflict, Forbidden, NotFound, ValidationFailed
 from ..ledger.models import PostedVoucher, VoucherDraft, content_hash
@@ -111,13 +112,18 @@ def approve(
     conn.execute("update bokbuzz.review_sessions set used_at = now() where id = %s", [session["id"]])
     approval_id = create_approval(conn, company_id=company_id, actor=actor, kind="proposal", request=final,
                                   proposal_id=proposal_id, review_session_id=session["id"])
-    conn.execute("update bokbuzz.documents set status = 'approved' where company_id = %s and id = %s",
-                 [company_id, proposal["document_id"]])
+    if proposal["document_id"] is not None:
+        conn.execute("update bokbuzz.documents set status = 'approved' where company_id = %s and id = %s",
+                     [company_id, proposal["document_id"]])
     voucher = post_voucher(conn, company_id=company_id, actor=actor, request=final,
                            approval_id=approval_id, idempotency_key=f"proposal:{proposal_id}",
                            document_id=proposal["document_id"])
-    conn.execute("update bokbuzz.documents set status = 'posted' where company_id = %s and id = %s",
-                 [company_id, proposal["document_id"]])
+    if proposal["document_id"] is not None:
+        conn.execute("update bokbuzz.documents set status = 'posted' where company_id = %s and id = %s",
+                     [company_id, proposal["document_id"]])
+    # Avstemming: bilag fra en banklinje kobles med en gang; andre bilag kan nå matche banken.
+    bank.link_posted_proposal(conn, company_id=company_id, actor=actor, proposal=proposal, voucher_id=voucher.id)
+    bank.request_reconcile(conn, company_id, "posted", str(voucher.id))
     conn.execute(
         "update bokbuzz.proposals set status = 'approved', decided_by = %s, decided_at = now(),"
         " decision_note = %s, voucher_id = %s where id = %s",
@@ -136,11 +142,12 @@ def reject(conn: Conn, *, company_id: UUID, proposal_id: UUID, actor: UUID, reas
         " decision_note = %s where id = %s returning *",
         [actor, reason[:500], proposal_id],
     ).fetchone()
-    conn.execute(
-        "update bokbuzz.documents set status = 'extracted' where company_id = %s and id = %s"
-        " and status = 'proposed'",
-        [company_id, proposal["document_id"]],
-    )
+    if proposal["document_id"] is not None:
+        conn.execute(
+            "update bokbuzz.documents set status = 'extracted' where company_id = %s and id = %s"
+            " and status = 'proposed'",
+            [company_id, proposal["document_id"]],
+        )
     audit.record(conn, company_id=company_id, actor=actor, event_type="proposal.rejected",
                  entity_type="proposal", entity_id=proposal_id, payload={"reason": reason[:500]})
     return row
