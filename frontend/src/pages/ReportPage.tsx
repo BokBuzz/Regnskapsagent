@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CheckCircle2, PieChart, Receipt, TrendingDown, TrendingUp } from "lucide-react";
+import { CheckCircle2, PieChart, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Amount, EmptyState, ErrorBox, Loading, PageHead, YearSelect } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { useLoad } from "../lib/useLoad";
@@ -55,6 +55,10 @@ export default function ReportPage() {
             <Link className="tile sky" style={{ gridColumn: "1 / -1", textDecoration: "none" }} to={`/c/${cid}/mva`}>
               <div className="label"><Receipt size={14} /> {vat >= 0 ? "MVA å betale" : "MVA til gode"} · se MVA-melding</div>
               <div className="value"><Amount ore={Math.abs(vat)} /></div>
+            </Link>
+            <Link className="tile" style={{ gridColumn: "1 / -1", textDecoration: "none", color: "inherit" }} to={`/c/${cid}/lonn`}>
+              <div className="label"><Wallet size={14} /> Lønn · ansatte, lønnskjøring og skattetrekk</div>
+              <div className="value">Kjør lønn →</div>
             </Link>
           </div>
           <section className="card stack" style={{ padding: 0 }}>

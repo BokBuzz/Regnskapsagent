@@ -330,3 +330,9 @@ tr.total td .num { font-size: 1rem; }
   h1 { font-size: 3.2rem; }
   .hero h1 { font-size: 4.2rem; }
 }
+
+@media print {
+  .topbar, .tabs, .no-print { display: none !important; }
+  .page { padding: 0 !important; }
+  .card { box-shadow: none; border: 0; }
+}

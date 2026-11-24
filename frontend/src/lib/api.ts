@@ -177,6 +177,106 @@ export interface VatCode {
   rate_bp: number;
 }
 
+export interface PayrollSettings {
+  aga_zone: string;
+  holiday_rate_bp: number;
+  pay_from_account: string;
+  tax_withholding_account: string | null;
+  kid_withholding: string | null;
+  kid_aga: string | null;
+  tax_authority_account: string | null;
+}
+
+export interface Employee {
+  id: string;
+  national_id: string;
+  name: string;
+  email: string | null;
+  bank_account: string;
+  position_pct_bp: number;
+  pay_type: "monthly" | "hourly";
+  monthly_salary_ore: number | null;
+  hourly_rate_ore: number | null;
+  tax_card_kind: "percent" | "table" | "none";
+  tax_percent: number | null;
+  tax_table: string | null;
+  start_date: string;
+  end_date: string | null;
+}
+
+export type NewEmployee = Omit<Employee, "id">;
+
+export interface PayrollRun {
+  id: string;
+  year: number;
+  month: number;
+  pay_date: string;
+  status: "draft" | "approved" | "cancelled";
+  aga_zone: string;
+  aga_rate_bp: number;
+  holiday_rate_bp: number;
+  voucher_id: string | null;
+  approved_at: string | null;
+  gross_ore?: number;
+  net_ore?: number;
+  employees?: number;
+}
+
+export interface PayrollLine {
+  employee_id: string;
+  name: string;
+  pay_type: "monthly" | "hourly";
+  tax_card_kind: string;
+  tax_percent: number | null;
+  tax_table: string | null;
+  hourly_rate_ore: number | null;
+  hours_x100: number | null;
+  base_ore: number;
+  bonus_ore: number;
+  gross_ore: number;
+  tax_ore: number;
+  tax_manual: boolean;
+  holiday_pay_ore: number;
+  aga_ore: number;
+  aga_holiday_ore: number;
+  net_ore: number;
+  note: string | null;
+}
+
+export interface PayrollSummary {
+  run: PayrollRun;
+  lines: PayrollLine[];
+  totals: Record<"gross_ore" | "tax_ore" | "net_ore" | "aga_ore" | "holiday_pay_ore" | "aga_holiday_ore", number>;
+  warnings: { code: string; message: string; blocking: boolean }[];
+  voucher_draft: VoucherDraft | null;
+  content_hash: string | null;
+  a_melding_due: string;
+}
+
+export interface LineChange {
+  hours_x100?: number | null;
+  bonus_ore?: number;
+  tax_override_ore?: number | null;
+  note?: string | null;
+}
+
+export interface TermPayments {
+  year: number;
+  term: number;
+  due: string;
+  withholding_ore: number;
+  aga_ore: number;
+  missing: string[];
+}
+
+export interface Payslip {
+  company: { name: string; orgnr: string };
+  run: PayrollRun;
+  line: PayrollLine;
+  period: string;
+  year_to_date: { gross: number; tax: number; holiday: number };
+}
+
 export class Api {
   constructor(private baseUrl: string, private token: TokenSource) {}
 
@@ -248,6 +348,32 @@ export class Api {
   vatReturn = (cid: string, year: number, term: number) =>
     this.request<VatReturn>("GET", `/companies/${cid}/vat-returns/${year}/${term}`);
   vatReturnXml = (cid: string, year: number, term: number) => this.download(`/companies/${cid}/vat-returns/${year}/${term}/xml`);
+
+  payrollSettings = (cid: string) => this.request<PayrollSettings | null>("GET", `/companies/${cid}/payroll/settings`);
+  savePayrollSettings = (cid: string, s: PayrollSettings) =>
+    this.request<PayrollSettings>("PUT", `/companies/${cid}/payroll/settings`, s);
+  employees = (cid: string) => this.request<Employee[]>("GET", `/companies/${cid}/employees`);
+  createEmployee = (cid: string, e: NewEmployee) => this.request<Employee>("POST", `/companies/${cid}/employees`, e);
+  updateEmployee = (cid: string, id: string, e: NewEmployee) =>
+    this.request<Employee>("PUT", `/companies/${cid}/employees/${id}`, e);
+  payrollRuns = (cid: string) => this.request<PayrollRun[]>("GET", `/companies/${cid}/payroll/runs`);
+  createPayrollRun = (cid: string, year: number, month: number, pay_date: string) =>
+    this.request<PayrollSummary>("POST", `/companies/${cid}/payroll/runs`, { year, month, pay_date });
+  payrollRun = (cid: string, rid: string) => this.request<PayrollSummary>("GET", `/companies/${cid}/payroll/runs/${rid}`);
+  updatePayrollLine = (cid: string, rid: string, eid: string, change: LineChange) =>
+    this.request<PayrollSummary>("POST", `/companies/${cid}/payroll/runs/${rid}/lines/${eid}`, change);
+  approvePayrollRun = (cid: string, rid: string, content_hash: string) =>
+    this.request<{ run: PayrollRun; voucher: { id: string } }>("POST", `/companies/${cid}/payroll/runs/${rid}/approve`,
+      { content_hash, confirm: true });
+  cancelPayrollRun = (cid: string, rid: string) =>
+    this.request<PayrollRun>("POST", `/companies/${cid}/payroll/runs/${rid}/cancel`);
+  payrollPaymentFile = (cid: string, rid: string) => this.download(`/companies/${cid}/payroll/runs/${rid}/payment-file`);
+  payslip = (cid: string, rid: string, eid: string) =>
+    this.request<Payslip>("GET", `/companies/${cid}/payroll/runs/${rid}/payslips/${eid}`);
+  termPayments = (cid: string, year: number, term: number) =>
+    this.request<TermPayments>("GET", `/companies/${cid}/payroll/terms/${year}/${term}`);
+  termPaymentFile = (cid: string, year: number, term: number, kind: "withholding" | "aga") =>
+    this.download(`/companies/${cid}/payroll/terms/${year}/${term}/payment-file?kind=${kind}`);
 
   async documentBlob(cid: string, documentId: string): Promise<Blob> {
     const token = await this.token();
