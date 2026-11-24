@@ -38,8 +38,9 @@ Fiken har over ti år og et stort team bak seg. Bokbuzz har én utvikler. Det be
 
 1. **Vi vinner ikke på bredde først.** Vi vinner på at de vanligste jobbene (bilag, bank, faktura, MVA)
    går mye raskere enn i Fiken. Bredden kommer etter piloten.
-2. **Vi kjøper der andre har sertifisering.** PEPPOL-aksesspunkt, bankdata (PSD2) og lønn bygger vi ikke
-   selv i første omgang. Vi integrerer mot leverandører som allerede har godkjenningene.
+2. **Vi kjøper der andre har sertifisering.** PEPPOL-aksesspunkt og bankdata (PSD2) bygger vi ikke
+   selv. Vi integrerer mot leverandører som allerede har godkjenningene. Lønn bygger vi selv (eiers
+   beslutning 24.11.2026), se `docs/LONN.md`.
 3. **Regelstyrt der det går, KI der det trengs.** Bankavstemming, MVA-beregning og frister er regler.
    KI brukes til å lese dokumenter, foreslå kontering, forklare og svare på spørsmål.
 4. **Noen Fiken-funksjoner kommer sent eller aldri** for målgruppen ENK og små AS: lager, innkjøpsordrer og
@@ -107,7 +108,7 @@ Fase viser når det kommer (se kapittel 4).
 |---|---|---|---|
 | Utlegg | ⬜ | 2 | Samme flyt som bilag, men refusjon til ansatt |
 | Reiseregning | ⬜ | 3 | Statens satser for diett og km |
-| Lønn, feriepenger, A-melding | ⬜ | 4 | Stort og regelstyrt. Først integrasjon mot lønnssystem, egen lønn senere |
+| Lønn, feriepenger, A-melding | ⬜ | 2–3 | Egen lønnskjøring, A-melding via systembruker, betalinger med KID. Se `docs/LONN.md` |
 | Ansattportal og timeføring | ⬜ | 4 | |
 
 ### Bilagshåndtering
@@ -189,10 +190,16 @@ aksesspunkt, PSD2-bank via leverandør, utlegg, prosjekt og avdeling, resultat o
   og avskrivning.
 - Årsregnskap og skattemelding for AS, betaling fra Bokbuzz, Stripe, Vipps, Shopify, WooCommerce, Klarna.
 
+### Lønn (fra fase 2, egen plan)
+
+Eier har bestemt egen lønnskjøring: kunden kjører lønn i Bokbuzz, Bokbuzz sender A-meldingen, henter
+tilbakemeldingen og lager betalinger (nettolønn, skattetrekk og arbeidsgiveravgift med KID) som kunden
+godkjenner i nettbanken. Steg L0–L4 og krav står i `docs/LONN.md`. L0 (lønnskjøring og betalingsfil) kan
+bygges uten tilganger; A-melding venter på Maskinporten og systembruker.
+
 ### Fase 4: Ansatte
 
-Integrasjon mot lønnssystem (lønnsbilag inn automatisk), reiseregning, ansattportal, timeføring.
-Egen lønn med A-melding vurderes først når kundegrunnlaget forsvarer det.
+Reiseregning, ansattportal, timeføring, sykepenger og refusjon fra NAV.
 
 ### Fase 5: Bredde
 
@@ -264,7 +271,7 @@ Det betyr at nye agenter ikke trenger nye sikkerhetsmekanismer, bare nye forslag
 | **Kontrollagent** (Compliance + Audit) | Finne feil, manglende dokumentasjon og frister; forberede avstemming og årsoppgjør; svarutkast til revisor | Regler + KI | 3 |
 | **Økonomisjefagent** (CFO) | Prognose, lønnsomhet, budsjett, helsescore | L-verktøy + beregninger | 3 |
 | **Skatteagent** | Skattemelding og næringsspesifikasjon, innsikt i skatteplanlegging | Grupperingskoder | 3 |
-| **Lønnsagent** | Lønnsbilag inn, kontroll av A-melding | Integrasjon først | 4 |
+| **Lønnsagent** | Forklarer lønnsslipp og avvik i A-meldingen, minner om frister | Lønnsmotor (regelkode) | 2–3 |
 
 Kontroll og revisjon er slått sammen til én agent i starten. De bruker de samme dataene og reglene, og
 færre agenter er lettere å teste for én utvikler.
@@ -287,7 +294,8 @@ færre agenter er lettere å teste for én utvikler.
 | **PEPPOL / EHF** | Å bli eget aksesspunkt krever avtale med norsk PEPPOL-myndighet, sertifisering og drift døgnet rundt | **Kjøp aksesspunkt som tjeneste** fra en eksisterende leverandør | Dager–uker |
 | **PSD2 kontoinformasjon** | Egen lisens fra Finanstilsynet som kontoinformasjonstjeneste, eller avtale med lisensiert aggregator | **Bruk aggregator** (velges i fase 2 ut fra pris og bankdekning) | Uker |
 | **PSD2 betaling** | Lisens som betalingsfullmektig eller aggregator med betalingsinitiering | Aggregator, fase 3 | Uker |
-| **A-melding** | Maskinporten + Altinn; tung regelmasse (lønn, skattetrekk, arbeidsgiveravgift) | Integrer mot lønnssystem først | Måneder |
+| **A-melding og skattekort** | Maskinporten, systembruker i Altinn 3, tilgang til Skatteetatens API for A-melding og skattekort | Egen lønnskjøring (eiers valg), se `docs/LONN.md` | Uker etter Maskinporten |
+| **Lønnsbetalinger** | Betalingsfil pain.001 (ingen avtale) først; senere PSD2-betalingsinitiering via aggregator | Fil først | – |
 | **Vipps MobilePay, Stripe, Shopify, WooCommerce, Klarna** | Partner- eller API-avtale per leverandør, vanligvis enkel | Fase 3 | Dager |
 | **Kassesystemer** | Avtale per leverandør; noen krever partnerstatus | Felles kassemodul, fase 5 | Varierer |
 | **Brønnøysundregistrene (oppslag)** | Åpent API | Finnes i PR #3 | – |
